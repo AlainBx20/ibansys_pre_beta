@@ -1,0 +1,12 @@
+node_modules/
+.npm-cache/
+dist/
+*.local
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+*.log
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
