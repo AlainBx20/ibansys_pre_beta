@@ -75,7 +75,7 @@ function ScrollReveal() {
       '.iso-grid > *',
       '.reason-grid article',
       '.value-node',
-      '.why-value',
+      '.why-principle',
       '.people-grid > *',
       '.commitment-row > div',
       '.commitment-node',
@@ -271,27 +271,23 @@ function ValuesJourney({ items }: { items: string[][] }) {
 
 function WhyValuesVisual({ items, lang }: { items: string[][]; lang: Lang }) {
   return <div className="why-values-visual" aria-label={lang === 'fr' ? 'Les six engagements de SMI' : 'SMI’s six commitments'}>
-    <div className="why-visual-grid" aria-hidden="true" />
-    <svg className="why-visual-lines" viewBox="0 0 1200 650" preserveAspectRatio="none" aria-hidden="true">
-      <circle cx="600" cy="325" r="215" /><circle cx="600" cy="325" r="152" />
-      <path d="M600 325C455 325 390 102 225 102M600 325H225M600 325C455 325 390 548 225 548M600 325C745 325 810 102 975 102M600 325H975M600 325C745 325 810 548 975 548" />
-      <path className="why-moving-line" d="M225 102C390 102 455 325 600 325S810 548 975 548" />
-    </svg>
-    <div className="why-core">
-      <div className="why-core-rings" aria-hidden="true"><i /><i /><i /></div>
-      <span className="why-core-since">{lang === 'fr' ? 'DEPUIS 1991' : 'SINCE 1991'}</span>
-      <strong>35</strong>
-      <span className="why-core-years">{lang === 'fr' ? 'ANS D’EXPERTISE' : 'YEARS OF EXPERTISE'}</span>
-      <span className="why-core-brand">SMI</span>
+    <svg className="why-flow-art" viewBox="0 0 1200 620" preserveAspectRatio="none" aria-hidden="true"><path d="M-80 515C210 380 280 690 570 505S930 190 1280 300" /><path d="M-80 555C210 420 310 730 600 545S960 230 1280 340" /><circle cx="1080" cy="80" r="190" /></svg>
+    <div className="why-visual-header"><Logo /><span>{lang === 'fr' ? 'UNE CULTURE QUI GUIDE CHAQUE PROJET' : 'A CULTURE THAT GUIDES EVERY PROJECT'}</span></div>
+    <div className="why-story-layout">
+      <aside className="why-years-panel">
+        <span>{lang === 'fr' ? 'DEPUIS' : 'SINCE'}</span><strong>1991</strong>
+        <div><b>35</b><span>{lang === 'fr' ? <>ANS<br />D’EXPERTISE</> : <>YEARS OF<br />EXPERTISE</>}</span></div>
+        <p>{lang === 'fr' ? 'Une expérience bancaire qui se transforme en valeur pour chaque nouveau projet.' : 'Banking experience turned into value for every new project.'}</p>
+      </aside>
+      <div className="why-principles">
+        {items.map(([title, body], index) => <article className="why-principle" key={title}>
+          <span className="why-principle-number">{String(index + 1).padStart(2, '0')}</span>
+          <span className="why-principle-icon"><DiagramIcon type={index} /></span>
+          <div><h3>{title}</h3><p>{body}</p></div>
+        </article>)}
+      </div>
     </div>
-    <div className="why-values-list">
-      {items.map(([title, body], index) => <article className="why-value" key={title}>
-        <span className="why-value-index">{String(index + 1).padStart(2, '0')}</span>
-        <span className="why-value-icon"><DiagramIcon type={index} /></span>
-        <div><h3>{title}</h3><p>{body}</p></div>
-      </article>)}
-    </div>
-    <div className="why-visual-caption"><span>SMI</span><p>{lang === 'fr' ? 'Comprendre. Livrer. Accompagner. Évoluer.' : 'Understand. Deliver. Support. Evolve.'}</p></div>
+    <div className="why-timeline"><span>1991</span><div><i /><i /><i /><i /><i /><i /><b /></div><span>{lang === 'fr' ? 'AUJOURD’HUI' : 'TODAY'}</span></div>
   </div>
 }
 
