@@ -3,6 +3,7 @@ name: Deploy SMI website to GitHub Pages
 on:
   push:
     branches:
+      - main
       - smi-react-vite
   workflow_dispatch:
 
