@@ -1,4 +1,4 @@
-import { CSSProperties, FormEvent, ReactNode, useEffect, useRef, useState } from 'react'
+import { CSSProperties, FormEvent, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { banks, copy, insights, Lang, worlds } from './site-content'
 
@@ -32,6 +32,18 @@ function DiagramIcon({ type = 0 }: { type?: number }) {
 
 function ChevronDown() {
   return <svg className="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+}
+
+function ChevronRight() {
+  return <svg className="chevron-right" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
+}
+
+function GlobeIcon() {
+  return <svg className="lang-globe" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.7 2.6 4.2 5.7 4.2 9s-1.5 6.4-4.2 9c-2.7-2.6-4.2-5.7-4.2-9S9.3 5.6 12 3Z" /></svg>
+}
+
+function MapPinIcon() {
+  return <svg className="map-pin-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z" /><circle cx="12" cy="9.5" r="2.4" /></svg>
 }
 
 function Logo({ footer = false }: { footer?: boolean }) {
@@ -155,14 +167,18 @@ function Header() {
   const [solutionsOpen, setSolutionsOpen] = useState(false)
   const [mobileSolutions, setMobileSolutions] = useState(false)
   const solutionsRef = useRef<HTMLDivElement>(null)
-  const otherLang = lang === 'fr' ? 'en' : 'fr'
-  const switched = location.pathname.replace(/^\/(fr|en)/, `/${otherLang}`)
+  const pathFor = (l: Lang) => location.pathname.replace(/^\/(fr|en)/, `/${l}`)
   const close = () => {
     setMobile(false)
     setSolutionsOpen(false)
     setMobileSolutions(false)
   }
+  const homeItem = ['', t.nav.home]
   const nav = [['expertise', t.nav.expertise], ['why-smi', t.nav.why], ['customer-success', t.nav.success], ['insights', t.nav.insights], ['careers', t.nav.careers]]
+  const isActive = (path: string) => {
+    if (path === '') return location.pathname === `/${lang}` || location.pathname === `/${lang}/`
+    return location.pathname.startsWith(`/${lang}/${path}`)
+  }
 
   useEffect(() => {
     setMobile(false)
@@ -190,6 +206,7 @@ function Header() {
       <div className="header-inner">
         <LocalLink to="" className="brand" onClick={close} ariaLabel={lang === 'fr' ? 'SMI — Retour à l’accueil' : 'SMI — Back to home'}><Logo /></LocalLink>
         <nav className="desktop-nav" aria-label="Primary navigation">
+          <LocalLink to={homeItem[0]} className={`nav-link${isActive(homeItem[0]) ? ' is-active' : ''}`}>{homeItem[1]}</LocalLink>
           <div className={`nav-solutions${solutionsOpen ? ' is-open' : ''}`} ref={solutionsRef}>
             <button className="nav-link nav-trigger" type="button" aria-expanded={solutionsOpen} aria-controls="desktop-solutions-menu" onClick={() => setSolutionsOpen(open => !open)}><span>{t.nav.solutions}</span><ChevronDown /></button>
             <div className="solutions-menu" id="desktop-solutions-menu" aria-hidden={!solutionsOpen}>
@@ -198,23 +215,27 @@ function Header() {
               <LocalLink to="banking-transformation" onClick={close}><strong>{lang === 'fr' ? 'Transformation bancaire' : 'Banking Transformation'}</strong><span>Legacy Modernisation & Integration</span></LocalLink>
             </div>
           </div>
-          {nav.map(([path, label]) => <LocalLink key={path} to={path} className="nav-link">{label}</LocalLink>)}
+          {nav.map(([path, label]) => <LocalLink key={path} to={path} className={`nav-link${isActive(path) ? ' is-active' : ''}`}>{label}</LocalLink>)}
         </nav>
         <div className="header-actions">
-          <Link className="language-switch" to={switched} onClick={() => track('language_selection', { locale: otherLang })}>{otherLang.toUpperCase()}</Link>
+          <div className="lang-switch" role="group" aria-label={lang === 'fr' ? 'Changer de langue' : 'Switch language'}>
+            <GlobeIcon />
+            {(['fr', 'en'] as const).map(option => <Link key={option} to={pathFor(option)} className={`lang-option${lang === option ? ' is-active' : ''}`} aria-current={lang === option ? 'true' : undefined} onClick={() => lang !== option && track('language_selection', { locale: option })}>{option.toUpperCase()}</Link>)}
+          </div>
           <LocalLink to="contact" className="button button-ghost header-expert">{t.nav.expert}</LocalLink>
           <LocalLink to="contact?intent=demo" className="button button-primary header-demo">{t.nav.demo}</LocalLink>
           <button className={`menu-button${mobile ? ' is-open' : ''}`} onClick={() => setMobile(!mobile)} aria-expanded={mobile} aria-label="Menu"><span /><span /><span /></button>
         </div>
       </div>
       {mobile && <nav className="mobile-nav" aria-label="Mobile navigation">
+        <LocalLink to={homeItem[0]} className={isActive(homeItem[0]) ? 'is-active' : undefined} onClick={close}>{homeItem[1]}</LocalLink>
         <button className="mobile-solutions-trigger" type="button" aria-expanded={mobileSolutions} onClick={() => setMobileSolutions(open => !open)}><span>{t.nav.solutions}</span><ChevronDown /></button>
         {mobileSolutions && <div className="mobile-solutions-panel">
           <LocalLink to="solutions/ibansys" onClick={close}>IBANSYS</LocalLink>
           <LocalLink to="solutions/swift-plus" onClick={close}>SWIFT+ Messaging Hub</LocalLink>
           <LocalLink to="banking-transformation" onClick={close}>{lang === 'fr' ? 'Transformation bancaire' : 'Banking Transformation'}</LocalLink>
         </div>}
-        {nav.map(([path, label]) => <LocalLink key={path} to={path} onClick={close}>{label}</LocalLink>)}
+        {nav.map(([path, label]) => <LocalLink key={path} to={path} className={isActive(path) ? 'is-active' : undefined} onClick={close}>{label}</LocalLink>)}
         <div className="mobile-actions"><LocalLink to="contact" className="button button-dark" onClick={close}>{t.nav.expert}</LocalLink><LocalLink to="contact?intent=demo" className="button button-primary" onClick={close}>{t.nav.demo}</LocalLink></div>
       </nav>}
     </header>
@@ -238,7 +259,10 @@ function Footer() {
   </footer>
 }
 
-function Layout({ children }: { children: ReactNode }) { return <><ScrollToTop /><ScrollReveal /><Header /><main>{children}</main><Footer /></> }
+function Layout({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation()
+  return <><ScrollToTop /><ScrollReveal /><Header /><main key={pathname} className="page-transition">{children}</main><Footer /></>
+}
 
 function CtaPair({ primary, secondary }: { primary?: string; secondary?: string }) {
   const lang = useLang(); const t = copy[lang]
@@ -256,17 +280,40 @@ function SectionHeading({ eyebrow, title, body, light = false }: { eyebrow: stri
 
 function ValuesJourney({ items }: { items: string[][] }) {
   const [active, setActive] = useState(0)
-  return <div className="values-journey" aria-label="SMI values">
-    <svg className="values-connectors" viewBox="0 0 1000 500" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M165 125H500H835M165 375H500H835M165 125C165 250 380 250 500 250M835 125C835 250 620 250 500 250M165 375C165 250 380 250 500 250M835 375C835 250 620 250 500 250" />
-      <path className="values-signal" d="M165 125H500C620 125 620 250 500 250C380 250 380 375 500 375H835" />
-    </svg>
-    <div className="values-core" aria-hidden="true"><Logo /><span>PRINCIPES<br />SMI</span></div>
-    <div className="values-grid">
-      {items.map(([title, body], index) => <button className={`value-node${active === index ? ' is-active' : ''}`} type="button" key={title} onMouseEnter={() => setActive(index)} onFocus={() => setActive(index)} onClick={() => setActive(index)}>
-        <span className="value-node-top"><span className="value-number">{String(index + 1).padStart(2, '0')}</span><DiagramIcon type={index} /></span>
-        <strong>{title}</strong><span className="value-description">{body}</span>
-      </button>)}
+  const lang = useLang()
+  const branches = [
+    'M142 210H275V70H319',
+    'M142 210H275V70H725',
+    'M142 210H319',
+    'M142 210H725',
+    'M142 210H275V350H319',
+    'M142 210H275V350H725',
+  ]
+  return <div className="values-journey" aria-label={lang === 'fr' ? 'Réseau des principes SMI' : 'SMI principles network'}>
+    <div className="values-journey-head">
+      <Logo />
+      <span><small>{lang === 'fr' ? 'SYSTÈME D’EXPERTISE SMI' : 'SMI EXPERTISE SYSTEM'}</small><strong>{lang === 'fr' ? 'Six principes. Une même exigence.' : 'Six principles. One standard.'}</strong></span>
+      <b>{lang === 'fr' ? 'Depuis 1991' : 'Since 1991'}</b>
+    </div>
+    <div className="values-network">
+      <svg className="values-connectors" viewBox="0 0 1100 420" preserveAspectRatio="none" aria-hidden="true">
+        <path className="values-backbone" d="M142 210H275M275 70V350M275 70H319M275 210H319M275 350H319M706 70H725M706 210H725M706 350H725" />
+        <path className="values-active-route" d={branches[active]} />
+        <path className="values-signal" d={branches[active]} />
+      </svg>
+      <div className="values-core" aria-live="polite">
+        <span className="values-core-ring" aria-hidden="true" />
+        <Logo />
+        <small>{lang === 'fr' ? 'PRINCIPE ACTIF' : 'ACTIVE PRINCIPLE'}</small>
+        <strong>{items[active][0]}</strong>
+      </div>
+      <div className="values-grid">
+        {items.map(([title, body], index) => <button className={`value-node${active === index ? ' is-active' : ''}`} type="button" key={title} onMouseEnter={() => setActive(index)} onFocus={() => setActive(index)} onClick={() => setActive(index)} aria-pressed={active === index}>
+          <span className="value-node-top"><span className="value-number">{String(index + 1).padStart(2, '0')}</span><DiagramIcon type={index} /></span>
+          <span className="value-node-copy"><strong>{title}</strong><span className="value-description">{body}</span></span>
+          <i aria-hidden="true" />
+        </button>)}
+      </div>
     </div>
   </div>
 }
@@ -382,14 +429,65 @@ function WhyValuesVisual({ items, lang }: { items: ValueEngagement[]; lang: Lang
 }
 
 function CommitmentJourney({ items }: { items: readonly string[] }) {
-  return <div className="commitment-journey">
-    <div className="commitment-line" aria-hidden="true"><span /></div>
-    {items.map((item, index) => <div className="commitment-node" key={item}><span className="commitment-marker"><b>{String(index + 1).padStart(2, '0')}</b></span><DiagramIcon type={index + 1} /><p>{item}</p></div>)}
+  const lang = useLang()
+  const [travelStep, setTravelStep] = useState(0)
+  const [reachedStep, setReachedStep] = useState<number | null>(0)
+  const phases = lang === 'fr' ? ['COMPRENDRE', 'ACCOMPAGNER', 'RESTER', 'ÉVOLUER'] : ['UNDERSTAND', 'SUPPORT', 'STAY', 'EVOLVE']
+  const notes = lang === 'fr'
+    ? ['Cadrer le besoin autour du métier bancaire.', 'Construire avec une équipe dédiée.', 'Assurer la continuité après le déploiement.', 'Faire progresser la solution sans rupture.']
+    : ['Frame the need around banking reality.', 'Build with one dedicated team.', 'Maintain continuity after deployment.', 'Advance the solution without disruption.']
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let current = 0
+    let direction = 1
+    let timer: number
+    const depart = () => {
+      setReachedStep(null)
+      const next = current + direction
+      setTravelStep(next)
+      timer = window.setTimeout(() => {
+        current = next
+        setReachedStep(current)
+        if (current === items.length - 1 || current === 0) direction *= -1
+        timer = window.setTimeout(depart, 700)
+      }, 2800)
+    }
+    timer = window.setTimeout(depart, 900)
+    return () => window.clearTimeout(timer)
+  }, [items.length])
+
+  const indicatorPosition = travelStep === items.length - 1
+    ? 'calc(100% - 12px)'
+    : `${travelStep / (items.length - 1) * 100}%`
+  return <div className="commitment-journey" aria-label={lang === 'fr' ? 'Cycle d’accompagnement SMI' : 'SMI partnership lifecycle'}>
+    <div className="commitment-head">
+      <Logo />
+      <span><small>{lang === 'fr' ? 'CYCLE D’ACCOMPAGNEMENT' : 'PARTNERSHIP LIFECYCLE'}</small><strong>{lang === 'fr' ? 'Un engagement continu, du cadrage à l’évolution.' : 'Continuous commitment, from discovery to evolution.'}</strong></span>
+      <b>{lang === 'fr' ? 'PARTENARIAT DURABLE' : 'LONG-TERM PARTNERSHIP'}</b>
+    </div>
+    <div className="commitment-track">
+      <div className="commitment-line" aria-hidden="true"><span /><i style={{ left: indicatorPosition }} /></div>
+      {items.map((item, index) => <div className="commitment-step" key={item}>
+        <span className={`commitment-marker${reachedStep === index ? ' is-reached' : ''}`}><b>{String(index + 1).padStart(2, '0')}</b></span>
+        <article className="commitment-node">
+          <div className="commitment-icon"><DiagramIcon type={index + 1} /></div>
+          <small>{phases[index]}</small>
+          <h3>{item}</h3>
+          <p>{notes[index]}</p>
+          <span className="commitment-corner" aria-hidden="true" />
+        </article>
+      </div>)}
+    </div>
   </div>
 }
 
 function CapabilityMatrix({ items }: { items: readonly string[] }) {
-  return <div className="capability-map">{items.map((item, index) => <article key={item}><span className="capability-index">{String(index + 1).padStart(2, '0')}</span><DiagramIcon type={index} /><h3>{item}</h3><span className="capability-corner" aria-hidden="true" /></article>)}</div>
+  return <div className="capability-map">{items.map((item, index) => <article key={item}>
+    <span className="capability-icon-wrap"><DiagramIcon type={index} /></span>
+    <h3>{item}</h3>
+    <span className="capability-index">{String(index + 1).padStart(2, '0')}</span>
+  </article>)}</div>
 }
 
 function ProcessJourney({ steps }: { steps: readonly string[] }) {
@@ -404,9 +502,17 @@ function ProcessJourney({ steps }: { steps: readonly string[] }) {
 
 function TransformationStories({ stories, lang }: { stories: string[][]; lang: Lang }) {
   const labels = lang === 'fr' ? ['Défi', 'Approche SMI', 'Résultat'] : ['Challenge', 'SMI approach', 'Outcome']
+  const stageIcons = [0, 3, 2]
   return <div className="transformation-stories">{stories.map(([title, challenge, approach, outcome], storyIndex) => <article className="transformation-story" key={title}>
     <div className="story-heading"><span>{String(storyIndex + 1).padStart(2, '0')}</span><h3>{title}</h3></div>
-    <div className="story-route">{[challenge, approach, outcome].map((text, index) => <div className={`story-stage story-stage-${index + 1}`} key={labels[index]}><span><DiagramIcon type={index + storyIndex} /></span><small>{labels[index]}</small><p>{text}</p></div>)}</div>
+    <div className="story-route">{[challenge, approach, outcome].map((text, index) => <div className={`story-stage story-stage-${index + 1}`} key={labels[index]}>
+      <div className="story-stage-head">
+        <span className="story-stage-icon"><DiagramIcon type={stageIcons[index]} /></span>
+        <small>{labels[index]}</small>
+        {index < 2 && <span className="story-arrow" aria-hidden="true"><ChevronRight /></span>}
+      </div>
+      <p>{text}</p>
+    </div>)}</div>
   </article>)}</div>
 }
 
@@ -430,19 +536,127 @@ function HomePage() {
   </Layout>
 }
 
-function ProductCard({ name, subtitle, tags, href }: { name: string; subtitle: string; tags: readonly string[]; href: string }) { const lang = useLang(); return <article className="product-card"><div><p className="eyebrow">SMI SOLUTION</p><h3>{name}</h3><p>{subtitle}</p></div><div className="tag-list">{tags.map(tag => <span key={tag}>{tag}</span>)}</div><LocalLink to={href} className="text-link">{lang === 'fr' ? `Explorer ${name}` : `Explore ${name}`} <Arrow /></LocalLink></article> }
+function ProductCard({ name, subtitle, tags, href }: { name: string; subtitle: string; tags: readonly string[]; href: string }) {
+  const lang = useLang()
+  const hasPlus = name.endsWith('+')
+  const base = hasPlus ? name.slice(0, -1) : name
+  return <article className="product-card">
+    <div>
+      <p className="eyebrow">SMI SOLUTION</p>
+      <h3 className="product-name">{base}{hasPlus && <span className="product-name-plus">+</span>}</h3>
+      <p>{subtitle}</p>
+    </div>
+    <div className="tag-list">{tags.map(tag => <span key={tag}>{tag}</span>)}</div>
+    <LocalLink to={href} className="text-link">{lang === 'fr' ? `Explorer ${name}` : `Explore ${name}`} <Arrow /></LocalLink>
+  </article>
+}
 function MessageFlow() {
   const lang = useLang()
-  const stages = lang === 'fr' ? ['Applications bancaires', 'Préparer', 'Valider', 'Router', 'Réseau financier'] : ['Banking applications', 'Prepare', 'Validate', 'Route', 'Financial network']
-  return <div className="message-flow-chart" aria-label={lang === 'fr' ? 'Cycle de vie d’un message financier' : 'Financial message lifecycle'}>
-    <div className="message-flow-track" aria-hidden="true"><span className="message-packet packet-one" /><span className="message-packet packet-two" /></div>
-    <div className="message-source"><DiagramIcon type={0} /><strong>{stages[0]}</strong><small>Core • Trade • Payments</small></div>
-    <div className="message-hub">
-      <span className="hub-kicker">SWIFT+</span><strong>Messaging Hub</strong>
-      <div className="hub-stages">{stages.slice(1, 4).map((stage, index) => <span key={stage}><b>{index + 1}</b>{stage}</span>)}</div>
+  const pipelineRef = useRef<HTMLDivElement>(null)
+  const ballRef = useRef<HTMLElement>(null)
+  const nodeRefs = useRef<(HTMLSpanElement | null)[]>([])
+  const [litNode, setLitNode] = useState<number | null>(null)
+
+  useEffect(() => {
+    const pipeline = pipelineRef.current
+    const ball = ballRef.current
+    if (!pipeline || !ball) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    let frame = 0
+    let running = false
+
+    // The packet's position is read from the live DOM rather than derived from the
+    // animation's timing: the rows are uneven (the focus row is ~50% taller), so any
+    // fixed percentage would light the wrong node.
+    const track = () => {
+      const ballBox = ball.getBoundingClientRect()
+      const ballY = ballBox.top + ballBox.height / 2
+      let hit: number | null = null
+      nodeRefs.current.forEach((el, index) => {
+        if (!el) return
+        const box = el.getBoundingClientRect()
+        if (ballY >= box.top && ballY <= box.bottom) hit = index
+      })
+      // Returning the previous value makes React bail out, so this only re-renders on
+      // an actual change (4x per cycle) rather than every frame.
+      setLitNode(prev => (prev === hit ? prev : hit))
+      frame = requestAnimationFrame(track)
+    }
+
+    const observer = new IntersectionObserver(entries => {
+      const visible = entries.some(entry => entry.isIntersecting)
+      if (visible && !running) {
+        running = true
+        frame = requestAnimationFrame(track)
+      } else if (!visible && running) {
+        running = false
+        cancelAnimationFrame(frame)
+        setLitNode(null)
+      }
+    }, { threshold: 0 })
+    observer.observe(pipeline)
+
+    return () => {
+      observer.disconnect()
+      cancelAnimationFrame(frame)
+    }
+  }, [])
+
+  const labels = lang === 'fr'
+    ? {
+        lifecycle: 'Cycle de messagerie', applications: 'Applications bancaires', applicationNote: 'Core Banking • Trade • Paiements', source: 'Sources',
+        actions: ['Préparer', 'Contrôler', 'Router', 'Superviser'], orchestration: 'Couche d’orchestration unifiée',
+        router: 'Routeur existant', routerNote: 'SAA • STARS • Infrastructure en place', integration: 'Interopérable',
+        network: 'Réseau financier', networkNote: 'MT • MX • ISO 20022 • CBPR+', destination: 'Destination'
+      }
+    : {
+        lifecycle: 'Message lifecycle', applications: 'Banking Applications', applicationNote: 'Core Banking • Trade • Payments', source: 'Sources',
+        actions: ['Prepare', 'Control', 'Route', 'Monitor'], orchestration: 'Unified orchestration layer',
+        router: 'Existing Router', routerNote: 'SAA • STARS • Existing infrastructure', integration: 'Interoperable',
+        network: 'Financial Network', networkNote: 'MT • MX • ISO 20022 • CBPR+', destination: 'Destination'
+      }
+
+  return <div className="flow-diagram" aria-label={lang === 'fr' ? 'Cycle de vie d’un message financier' : 'Financial message lifecycle'}>
+    <div className="flow-diagram-head">
+      <span><small>SWIFT+ ARCHITECTURE</small><strong>{labels.lifecycle}</strong></span>
     </div>
-    <div className="message-target"><DiagramIcon type={2} /><strong>{stages[4]}</strong><small>MT • MX • ISO 20022</small></div>
-    <div className="message-monitor"><span className="monitor-pulse" /><strong>{lang === 'fr' ? 'Supervision continue' : 'Continuous monitoring'}</strong><span>{lang === 'fr' ? 'Contrôler • Tracer • Investiguer' : 'Control • Trace • Investigate'}</span></div>
+    <div className="flow-pipeline" ref={pipelineRef}>
+      <span className="flow-spine" aria-hidden="true"><i ref={ballRef} /></span>
+      <div className="flow-row">
+        <span className={`flow-node${litNode === 0 ? ' is-lit' : ''}`} ref={el => { nodeRefs.current[0] = el }}>01</span>
+        <div className="flow-stage">
+          <span className="flow-stage-icon"><DiagramIcon type={0} /></span>
+          <span className="flow-stage-copy"><strong>{labels.applications}</strong><span>{labels.applicationNote}</span></span>
+          <span className="flow-stage-tag">{labels.source}</span>
+        </div>
+      </div>
+      <div className="flow-row flow-row-focus">
+        <span className={`flow-node${litNode === 1 ? ' is-lit' : ''}`} ref={el => { nodeRefs.current[1] = el }}>02</span>
+        <div className="flow-focus">
+          <span className="flow-focus-kicker">SMI • SWIFT+</span>
+          <strong>Messaging Hub</strong>
+          <small>{labels.orchestration}</small>
+          <div className="flow-focus-actions">{labels.actions.map((action, index) => <span key={action}><b>0{index + 1}</b>{action}</span>)}</div>
+        </div>
+      </div>
+      <div className="flow-row">
+        <span className={`flow-node${litNode === 2 ? ' is-lit' : ''}`} ref={el => { nodeRefs.current[2] = el }}>03</span>
+        <div className="flow-stage">
+          <span className="flow-stage-icon"><DiagramIcon type={4} /></span>
+          <span className="flow-stage-copy"><strong>{labels.router}</strong><span>{labels.routerNote}</span></span>
+          <span className="flow-stage-tag">{labels.integration}</span>
+        </div>
+      </div>
+      <div className="flow-row">
+        <span className={`flow-node${litNode === 3 ? ' is-lit' : ''}`} ref={el => { nodeRefs.current[3] = el }}>04</span>
+        <div className="flow-stage">
+          <span className="flow-stage-icon"><DiagramIcon type={2} /></span>
+          <span className="flow-stage-copy"><strong>{labels.network}</strong><span>{labels.networkNote}</span></span>
+          <span className="flow-stage-tag">{labels.destination}</span>
+        </div>
+      </div>
+    </div>
   </div>
 }
 function slugify(value: string) { return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') }
@@ -478,9 +692,211 @@ function PageHero({ eyebrow, title, body, label }: { eyebrow: string; title: str
   return <section className="page-hero"><div className="page-hero-inner"><div>{label && <span className="product-label">{label}</span>}<p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{body}</p><CtaPair /></div></div></section>
 }
 
-function SwiftArchitecture() { const lang = useLang(); return <section className="architecture section-pad"><div className="content"><SectionHeading eyebrow="CANONICAL DATA MODEL" title={lang === 'fr' ? 'Normaliser une fois. Évoluer en continu.' : 'Normalize once. Evolve continuously.'} body={lang === 'fr' ? 'Le modèle pivot isole les applications des changements de format et simplifie la coexistence MT/MX.' : 'The canonical model isolates applications from format changes and simplifies MT/MX coexistence.'} light /><div className="canonical-chart"><svg viewBox="0 0 1000 430" preserveAspectRatio="none" aria-hidden="true"><path d="M190 80C330 80 330 215 440 215M190 215H440M190 350C330 350 330 215 440 215M560 215C670 215 670 80 810 80M560 215H810M560 215C670 215 670 350 810 350" /><path className="canonical-signal" d="M190 80C330 80 330 215 440 215H560C670 215 670 350 810 350" /></svg><div className="canonical-column canonical-inputs"><span><DiagramIcon type={0} />Application A</span><span><DiagramIcon type={1} />Application B</span><span><DiagramIcon type={2} />Application C</span></div><div className="canonical-core"><small>SWIFT+</small>{lang === 'fr' ? <>MODÈLE DE<br />DONNÉES PIVOT</> : <>CANONICAL<br />DATA MODEL</>}<span>{lang === 'fr' ? 'Normaliser • Contrôler • Transformer' : 'Normalize • Control • Transform'}</span></div><div className="canonical-column canonical-outputs"><span>SWIFT MT<DiagramIcon type={3} /></span><span>ISO 20022 / MX<DiagramIcon type={4} /></span><span>{lang === 'fr' ? 'Autres formats' : 'Other Formats'}<DiagramIcon type={5} /></span></div></div><div className="routing-note"><strong>{lang === 'fr' ? 'Préserver la couche de transport. Moderniser la couche de valeur.' : 'Preserve the transport layer. Modernise the value layer.'}</strong><p>SWIFT+ {lang === 'fr' ? 'complète les infrastructures SAA, STARS et routeurs existants ; elle ne les remplace pas.' : 'works alongside SAA, STARS and existing routing infrastructure; it does not replace them.'}</p></div></div></section> }
+type CanonicalLine = { key: string; d: string }
 
-function IbansysIntegration() { const lang = useLang(); const systems = lang === 'fr' ? ['Système bancaire central', 'SWIFT+ Messaging Hub', 'Lutte anti-blanchiment & conformité', 'Systèmes de paiement', 'Gestion documentaire', 'Reporting & BI'] : ['Core Banking', 'SWIFT+ Messaging Hub', 'AML & Compliance', 'Payment Systems', 'Document Management', 'Reporting & BI']; return <section className="architecture section-pad"><div className="content"><SectionHeading eyebrow="INTEGRATION FIRST" title={lang === 'fr' ? 'Intégrer. Ne pas isoler.' : 'Integrate. Don’t isolate.'} body={lang === 'fr' ? 'IBANSYS se connecte au système d’information existant par APIs, services, fichiers et intégrations de données.' : 'IBANSYS connects to the existing information system through APIs, services, files and data integrations.'} light /><div className="integration-chart"><svg viewBox="0 0 1000 540" preserveAspectRatio="none" aria-hidden="true"><path d="M500 270L175 95M500 270L500 70M500 270L825 95M500 270L175 445M500 270L500 470M500 270L825 445" /><circle cx="500" cy="270" r="172" /><circle className="integration-signal signal-a" cx="0" cy="0" r="6" /><circle className="integration-signal signal-b" cx="0" cy="0" r="6" /></svg><div className="integration-core"><small>TRADE & INTERNATIONAL BANKING</small>IBANSYS<span>API • Services • Data</span></div>{systems.map((system, index) => <span className="integration-node" key={system}><DiagramIcon type={index} /><b>{system}</b><small>{index % 2 === 0 ? 'API / Services' : (lang === 'fr' ? 'Échange de données' : 'Data exchange')}</small></span>)}</div><div className="routing-note"><strong>{lang === 'fr' ? 'Plateforme globale. Conformité locale.' : 'Global platform. Local compliance.'}</strong><p>{lang === 'fr' ? 'Adaptable aux réglementations locales en vigueur et aux exigences propres à chaque marché.' : 'Adaptable to applicable local regulations and market requirements.'}</p></div></div></section> }
+function CanonicalDiagram({ lang }: { lang: Lang }) {
+  const inputs = [
+    { key: 'a', label: 'Application A', icon: 0 },
+    { key: 'b', label: 'Application B', icon: 1 },
+    { key: 'c', label: 'Application C', icon: 2 },
+  ]
+  const outputs = [
+    { key: 'mt', label: 'SWIFT MT', icon: 3 },
+    { key: 'mx', label: 'ISO 20022 / MX', icon: 4 },
+    { key: 'other', label: lang === 'fr' ? 'Autres formats' : 'Other Formats', icon: 5 },
+  ]
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const coreRef = useRef<HTMLDivElement>(null)
+  const inputRefs = useRef<(HTMLDivElement | null)[]>([])
+  const outputRefs = useRef<(HTMLDivElement | null)[]>([])
+  const [lines, setLines] = useState<CanonicalLine[]>([])
+  const [hover, setHover] = useState<string | null>(null)
+
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    const core = coreRef.current
+    if (!container || !core) return
+
+    const measure = () => {
+      const containerBox = container.getBoundingClientRect()
+      const coreBox = core.getBoundingClientRect()
+      if (!containerBox.width || !coreBox.width) return
+      const next: CanonicalLine[] = []
+      inputRefs.current.forEach((el, index) => {
+        if (!el) return
+        const box = el.getBoundingClientRect()
+        const startX = box.right - containerBox.left
+        const startY = box.top + box.height / 2 - containerBox.top
+        const endX = coreBox.left - containerBox.left
+        const endY = coreBox.top + coreBox.height / 2 - containerBox.top
+        const midX = startX + (endX - startX) * 0.55
+        next.push({ key: `in-${index}`, d: `M${startX},${startY} C${midX},${startY} ${midX},${endY} ${endX},${endY}` })
+      })
+      outputRefs.current.forEach((el, index) => {
+        if (!el) return
+        const box = el.getBoundingClientRect()
+        const startX = coreBox.right - containerBox.left
+        const startY = coreBox.top + coreBox.height / 2 - containerBox.top
+        const endX = box.left - containerBox.left
+        const endY = box.top + box.height / 2 - containerBox.top
+        const midX = startX + (endX - startX) * 0.45
+        next.push({ key: `out-${index}`, d: `M${startX},${startY} C${midX},${startY} ${midX},${endY} ${endX},${endY}` })
+      })
+      setLines(next)
+    }
+
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(container)
+    ro.observe(core)
+    inputRefs.current.forEach(el => el && ro.observe(el))
+    outputRefs.current.forEach(el => el && ro.observe(el))
+    window.addEventListener('resize', measure)
+    document.fonts?.ready?.then(measure).catch(() => {})
+    const settle = window.setTimeout(measure, 320)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+      window.clearTimeout(settle)
+    }
+  }, [lang])
+
+  return <div className="canonical-chart" ref={containerRef}>
+    <svg className="canonical-lines" aria-hidden="true">
+      {lines.map(line => <path key={line.key} d={line.d} className={`canonical-line${hover === line.key ? ' is-active' : ''}`} />)}
+      {lines.map(line => <path key={`${line.key}-signal`} d={line.d} className={`canonical-line-signal${hover && hover !== line.key ? ' is-dim' : ''}`} />)}
+    </svg>
+    <div className="canonical-column canonical-inputs">
+      {inputs.map((item, index) => <div className={`canonical-node${hover === `in-${index}` ? ' is-hovered' : ''}`} key={item.key} ref={el => { inputRefs.current[index] = el }} onMouseEnter={() => setHover(`in-${index}`)} onMouseLeave={() => setHover(null)}>
+        <DiagramIcon type={item.icon} /><span>{item.label}</span>
+      </div>)}
+    </div>
+    <div className="canonical-core" ref={coreRef}>
+      <small>SWIFT+</small>
+      <strong>{lang === 'fr' ? <>MODÈLE DE<br />DONNÉES PIVOT</> : <>CANONICAL<br />DATA MODEL</>}</strong>
+      <span>{lang === 'fr' ? 'Normaliser • Contrôler • Transformer' : 'Normalize • Control • Transform'}</span>
+    </div>
+    <div className="canonical-column canonical-outputs">
+      {outputs.map((item, index) => <div className={`canonical-node${hover === `out-${index}` ? ' is-hovered' : ''}`} key={item.key} ref={el => { outputRefs.current[index] = el }} onMouseEnter={() => setHover(`out-${index}`)} onMouseLeave={() => setHover(null)}>
+        <span>{item.label}</span><DiagramIcon type={item.icon} />
+      </div>)}
+    </div>
+  </div>
+}
+
+function SwiftArchitecture() { const lang = useLang(); return <section className="architecture section-pad"><div className="content"><SectionHeading eyebrow="CANONICAL DATA MODEL" title={lang === 'fr' ? 'Normaliser une fois. Évoluer en continu.' : 'Normalize once. Evolve continuously.'} body={lang === 'fr' ? 'Le modèle pivot isole les applications des changements de format et simplifie la coexistence MT/MX.' : 'The canonical model isolates applications from format changes and simplifies MT/MX coexistence.'} light /><CanonicalDiagram lang={lang} /><div className="routing-note"><strong>{lang === 'fr' ? 'Préserver la couche de transport. Moderniser la couche de valeur.' : 'Preserve the transport layer. Modernise the value layer.'}</strong><p>SWIFT+ {lang === 'fr' ? 'complète les infrastructures SAA, STARS et routeurs existants ; elle ne les remplace pas.' : 'works alongside SAA, STARS and existing routing infrastructure; it does not replace them.'}</p></div></div></section> }
+
+type RailStub = { key: string; d: string }
+type RailJunction = { key: string; x: number; y: number }
+
+function IntegrationDiagram({ lang, systems }: { lang: Lang; systems: { key: string; label: string; icon: number }[] }) {
+  const top = systems.slice(0, 3)
+  const bottom = systems.slice(3, 6)
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const hubRef = useRef<HTMLDivElement>(null)
+  const topRefs = useRef<(HTMLDivElement | null)[]>([])
+  const bottomRefs = useRef<(HTMLDivElement | null)[]>([])
+  const [stubs, setStubs] = useState<RailStub[]>([])
+  const [junctions, setJunctions] = useState<RailJunction[]>([])
+  const [rail, setRail] = useState('')
+  const [hover, setHover] = useState<string | null>(null)
+
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    const hub = hubRef.current
+    if (!container || !hub) return
+
+    const measure = () => {
+      const containerBox = container.getBoundingClientRect()
+      const hubBox = hub.getBoundingClientRect()
+      if (!containerBox.width || !hubBox.width) return
+      const railY = hubBox.top + hubBox.height / 2 - containerBox.top
+      const hubCx = hubBox.left + hubBox.width / 2 - containerBox.left
+
+      const nextStubs: RailStub[] = []
+      const nextJunctions: RailJunction[] = []
+      let minX = hubCx
+      let maxX = hubCx
+
+      const collect = (refs: (HTMLDivElement | null)[], side: 'top' | 'bottom') => {
+        refs.forEach((el, index) => {
+          if (!el) return
+          const box = el.getBoundingClientRect()
+          const x = box.left + box.width / 2 - containerBox.left
+          const y = (side === 'top' ? box.bottom : box.top) - containerBox.top
+          const key = `${side}-${index}`
+          nextStubs.push({ key, d: `M${x},${y} L${x},${railY}` })
+          nextJunctions.push({ key, x, y: railY })
+          minX = Math.min(minX, x)
+          maxX = Math.max(maxX, x)
+        })
+      }
+      collect(topRefs.current, 'top')
+      collect(bottomRefs.current, 'bottom')
+
+      setStubs(nextStubs)
+      setJunctions(nextJunctions)
+      setRail(`M${minX},${railY} L${maxX},${railY}`)
+    }
+
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(container)
+    ro.observe(hub)
+    topRefs.current.forEach(el => el && ro.observe(el))
+    bottomRefs.current.forEach(el => el && ro.observe(el))
+    window.addEventListener('resize', measure)
+    document.fonts?.ready?.then(measure).catch(() => {})
+    const settle = window.setTimeout(measure, 320)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+      window.clearTimeout(settle)
+    }
+  }, [lang, systems])
+
+  const exchangeLabel = lang === 'fr' ? 'Échange de données' : 'Data exchange'
+
+  return <div className="integration-chart" ref={containerRef}>
+    <svg className="integration-lines" aria-hidden="true">
+      {rail && <path d={rail} className="integration-rail" />}
+      {rail && <path d={rail} className="integration-rail-current" />}
+      {stubs.map(s => <path key={s.key} d={s.d} className={`integration-stub${hover === s.key ? ' is-active' : ''}`} />)}
+      {junctions.map(j => <circle key={j.key} cx={j.x} cy={j.y} r="3.5" className={`integration-via${hover === j.key ? ' is-active' : ''}`} />)}
+      {rail && <circle className="integration-signal signal-a" r="4" style={{ offsetPath: `path('${rail}')` }} />}
+    </svg>
+    <div className="integration-row integration-row-top">
+      {top.map((system, index) => <div className={`integration-node${hover === `top-${index}` ? ' is-hovered' : ''}`} key={system.key} ref={el => { topRefs.current[index] = el }} onMouseEnter={() => setHover(`top-${index}`)} onMouseLeave={() => setHover(null)}>
+        <span className="integration-icon-wrap"><DiagramIcon type={system.icon} /></span>
+        <b>{system.label}</b>
+        <small>{index % 2 === 0 ? 'API / Services' : exchangeLabel}</small>
+      </div>)}
+    </div>
+    <div className="integration-hub-track">
+      <div className="integration-hub" ref={hubRef}>
+        <small>TRADE &amp; INTERNATIONAL BANKING</small>
+        <strong>IBANSYS</strong>
+        <span className="hub-tagline">API • Services • Data</span>
+      </div>
+    </div>
+    <div className="integration-row integration-row-bottom">
+      {bottom.map((system, index) => <div className={`integration-node${hover === `bottom-${index}` ? ' is-hovered' : ''}`} key={system.key} ref={el => { bottomRefs.current[index] = el }} onMouseEnter={() => setHover(`bottom-${index}`)} onMouseLeave={() => setHover(null)}>
+        <span className="integration-icon-wrap"><DiagramIcon type={system.icon} /></span>
+        <b>{system.label}</b>
+        <small>{(index + 3) % 2 === 0 ? 'API / Services' : exchangeLabel}</small>
+      </div>)}
+    </div>
+  </div>
+}
+
+function IbansysIntegration() {
+  const lang = useLang()
+  const labels = lang === 'fr' ? ['Système bancaire central', 'SWIFT+ Messaging Hub', 'Lutte anti-blanchiment & conformité', 'Systèmes de paiement', 'Gestion documentaire', 'Reporting & BI'] : ['Core Banking', 'SWIFT+ Messaging Hub', 'AML & Compliance', 'Payment Systems', 'Document Management', 'Reporting & BI']
+  const systems = labels.map((label, index) => ({ key: `sys-${index}`, label, icon: index }))
+  return <section className="architecture section-pad"><div className="content"><SectionHeading eyebrow="INTEGRATION FIRST" title={lang === 'fr' ? 'Intégrer. Ne pas isoler.' : 'Integrate. Don’t isolate.'} body={lang === 'fr' ? 'IBANSYS se connecte au système d’information existant par APIs, services, fichiers et intégrations de données.' : 'IBANSYS connects to the existing information system through APIs, services, files and data integrations.'} light /><IntegrationDiagram lang={lang} systems={systems} /><div className="routing-note"><strong>{lang === 'fr' ? 'Plateforme globale. Conformité locale.' : 'Global platform. Local compliance.'}</strong><p>{lang === 'fr' ? 'Adaptable aux réglementations locales en vigueur et aux exigences propres à chaque marché.' : 'Adaptable to applicable local regulations and market requirements.'}</p></div></div></section>
+}
 function InfoCard({ title, body }: { title: string; body: string }) { return <article className="info-card"><h3>{title}</h3><p>{body}</p></article> }
 
 function TransformationPage() {
@@ -607,9 +1023,61 @@ function InsightArticlePage() {
 
 function CareersPage() { const lang = useLang(); const paths = lang === 'fr' ? ['Ingénierie logicielle', 'Analyse bancaire & métier', 'Messagerie financière', 'Données & bases de données', 'Intégration & architecture', 'Gestion de projet & delivery'] : ['Software Engineering', 'Banking & Business Analysis', 'Financial Messaging', 'Data & Databases', 'Integration & Architecture', 'Project & Delivery']; return <Layout><Seo title="Careers at SMI | Banking Technology" description="Build expertise at the intersection of banking and technology." /><PageHero eyebrow="CAREERS" title={lang === 'fr' ? 'Construisez avec nous les technologies qui font évoluer la banque.' : 'Build the Future of Banking Technology With Us.'} body={lang === 'fr' ? 'Apprenez la technologie. Comprenez le métier. Construisez de vraies solutions bancaires.' : 'Learn the technology. Understand the business. Build real banking solutions.'} note="Curiosity. Rigour. Banking knowledge. Engineering excellence." /><section className="section-pad content"><SectionHeading eyebrow={lang === 'fr' ? 'DOMAINES' : 'FIELDS'} title={lang === 'fr' ? 'Travaillez sur des systèmes qui comptent.' : 'Work on systems that matter.'} /><CapabilityMatrix items={paths} /></section><section className="people section-pad"><div className="content people-grid"><SectionHeading eyebrow={lang === 'fr' ? 'GRANDIR CHEZ SMI' : 'GROW AT SMI'} title={lang === 'fr' ? 'L’expérience grandit lorsqu’elle est partagée.' : 'Experience grows when it is shared.'} body={lang === 'fr' ? 'Mentorat, sessions de connaissance, apprentissage projet, documentation et collaboration entre équipes.' : 'Mentoring, knowledge sessions, project learning, documentation and cross-team collaboration.'} /><div className="role-list">{(lang === 'fr' ? ['Projets utiles', 'Apprentissage continu', 'Collaboration entre experts', 'Évolution dans la durée'] : ['Meaningful Projects', 'Continuous Learning', 'Expert Collaboration', 'Long-Term Growth']).map(item => <div key={item}><span /><p>{item}</p></div>)}</div></div></section><FinalCta title={lang === 'fr' ? 'Commencez par la technologie. Développez une expertise bancaire.' : 'Start with technology. Grow into banking expertise.'} /></Layout> }
 
+const contactAddress = '11 Av. Louis Braille, Tunis, Tunisie'
+
+function ContactMap() {
+  const lang = useLang()
+  const query = encodeURIComponent(contactAddress)
+  return <div className="contact-map" aria-label={lang === 'fr' ? 'Carte : bureaux SMI à Tunis' : 'Map: SMI offices in Tunis'}>
+    <iframe title={lang === 'fr' ? 'Localisation SMI' : 'SMI location'} src={`https://www.google.com/maps?q=${query}&output=embed`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
+    <a className="contact-map-pin" href={`https://www.google.com/maps/search/?api=1&query=${query}`} target="_blank" rel="noopener noreferrer">
+      <span><MapPinIcon />SMI — {lang === 'fr' ? 'Siège Tunis' : 'Tunis HQ'}</span>
+      <small>{contactAddress}</small>
+      <em className="text-link">{lang === 'fr' ? 'Itinéraire' : 'Get directions'} <Arrow /></em>
+    </a>
+  </div>
+}
+
 function ContactPage() {
-  const lang = useLang(); const [submitted, setSubmitted] = useState(false); const onSubmit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); track('form_submission', { form: 'contact', locale: lang }); setSubmitted(true) }; const interests = ['Trade Finance', 'IBANSYS', 'SWIFT & Financial Messaging', 'ISO 20022', 'SWIFT+ Messaging Hub', 'Banking Integration', 'Digital Transformation', 'Legacy Modernisation', 'Data Migration', 'Process Automation', 'Partnership', 'Other']
-  return <Layout><Seo title="Talk to an Expert | SMI" description="Discuss your next banking challenge with SMI." /><PageHero eyebrow={lang === 'fr' ? 'PARLONS BANQUE' : 'LET’S TALK BANKING'} title={lang === 'fr' ? 'Parlons de votre prochain enjeu bancaire.' : 'Let’s Discuss What’s Next for Your Bank.'} body={lang === 'fr' ? 'Trade Finance, SWIFT, ISO 20022, modernisation ou intégration : chaque projet commence par la compréhension du contexte.' : 'Trade Finance, SWIFT, ISO 20022, modernisation or integration: every project starts with understanding the context.'} /><section className="section-pad content contact-grid"><div><SectionHeading eyebrow={lang === 'fr' ? 'VOTRE CONTEXTE D’ABORD' : 'YOUR CONTEXT FIRST'} title={lang === 'fr' ? 'Commençons par le besoin.' : 'Start with the challenge.'} body={lang === 'fr' ? 'La bonne discussion, avec la bonne expertise.' : 'The right discussion with the right expertise.'} /><div className="contact-details"><a href="mailto:contact@societelemondeinformatique.com">contact@societelemondeinformatique.com</a><a href="tel:+21653928121">+216 53 928 121</a><p>21 rue d’Iran, 1002 Tunis, Tunisie</p></div></div><form className="contact-form" onSubmit={onSubmit}>{submitted ? <div className="form-success"><strong>{lang === 'fr' ? 'Merci pour votre demande.' : 'Thank you for your request.'}</strong><p>{lang === 'fr' ? 'Le formulaire est prêt à être relié au CRM ou au service d’envoi retenu avant la mise en production.' : 'The form is ready to connect to the selected CRM or delivery service before production.'}</p><button type="button" className="button button-outline" onClick={() => setSubmitted(false)}>{lang === 'fr' ? 'Nouvelle demande' : 'New request'}</button></div> : <><div className="form-row"><label>{lang === 'fr' ? 'Prénom' : 'First Name'} *<input required name="firstName" /></label><label>{lang === 'fr' ? 'Nom' : 'Last Name'} *<input required name="lastName" /></label></div><label>{lang === 'fr' ? 'Institution / Entreprise' : 'Institution / Company'} *<input required name="institution" /></label><div className="form-row"><label>{lang === 'fr' ? 'Fonction' : 'Job Title'}<input name="jobTitle" /></label><label>{lang === 'fr' ? 'Pays' : 'Country'} *<input required name="country" /></label></div><label>{lang === 'fr' ? 'Email professionnel' : 'Business Email'} *<input required type="email" name="email" /></label><label>{lang === 'fr' ? 'Domaine d’intérêt' : 'Area of Interest'} *<select required name="interest" defaultValue=""><option value="" disabled>{lang === 'fr' ? 'Sélectionner' : 'Select'}</option>{interests.map(item => <option key={item}>{item}</option>)}</select></label><label>Message *<textarea required name="message" rows={5} /></label><label className="consent"><input type="checkbox" required />{lang === 'fr' ? 'J’accepte que SMI utilise ces informations pour répondre à ma demande.' : 'I agree that SMI may use this information to respond to my request.'}</label><button className="button button-primary" type="submit">{lang === 'fr' ? 'Envoyer la demande' : 'Send Request'} <Arrow /></button></>}</form></section></Layout>
+  const lang = useLang()
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'activation' | 'success' | 'error'>('idle')
+  const interests = ['Trade Finance', 'IBANSYS', 'SWIFT & Financial Messaging', 'ISO 20022', 'SWIFT+ Messaging Hub', 'Banking Integration', 'Digital Transformation', 'Legacy Modernisation', 'Data Migration', 'Process Automation', 'Partnership', 'Other']
+
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (status === 'submitting') return
+    const form = event.currentTarget
+    const data = Object.fromEntries(new FormData(form).entries())
+    if (data._honey) return
+    setStatus('submitting')
+    try {
+      const response = await fetch('https://formsubmit.co/ajax/chuikaa.a@societelemondeinformatique.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          _subject: `SMI website — ${data.interest || 'Contact request'}`,
+          _template: 'table',
+          _replyto: data.email,
+          source: window.location.href,
+        }),
+      })
+      if (!response.ok) throw new Error(`Submission failed with ${response.status}`)
+      const result = await response.json() as { success?: string | boolean; message?: string }
+      if ((result.success === false || result.success === 'false') && result.message?.toLowerCase().includes('activation')) {
+        setStatus('activation')
+        return
+      }
+      if (result.success === false || result.success === 'false') throw new Error('Submission was rejected')
+      track('form_submission', { form: 'contact', locale: lang })
+      form.reset()
+      setStatus('success')
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  return <Layout><Seo title="Talk to an Expert | SMI" description="Discuss your next banking challenge with SMI." /><PageHero eyebrow={lang === 'fr' ? 'PARLONS BANQUE' : 'LET’S TALK BANKING'} title={lang === 'fr' ? 'Parlons de votre prochain enjeu bancaire.' : 'Let’s Discuss What’s Next for Your Bank.'} body={lang === 'fr' ? 'Trade Finance, SWIFT, ISO 20022, modernisation ou intégration : chaque projet commence par la compréhension du contexte.' : 'Trade Finance, SWIFT, ISO 20022, modernisation or integration: every project starts with understanding the context.'} /><section className="section-pad content contact-grid"><div><SectionHeading eyebrow={lang === 'fr' ? 'VOTRE CONTEXTE D’ABORD' : 'YOUR CONTEXT FIRST'} title={lang === 'fr' ? 'Commençons par le besoin.' : 'Start with the challenge.'} body={lang === 'fr' ? 'La bonne discussion, avec la bonne expertise.' : 'The right discussion with the right expertise.'} /><div className="contact-details"><a href="mailto:contact@societelemondeinformatique.com">contact@societelemondeinformatique.com</a><a href="tel:+21653928121">+216 53 928 121</a><p>{contactAddress}</p></div><ContactMap /></div><form className="contact-form" onSubmit={onSubmit}>{status === 'success' ? <div className="form-success" role="status"><strong>{lang === 'fr' ? 'Merci pour votre demande.' : 'Thank you for your request.'}</strong><p>{lang === 'fr' ? 'Votre message a bien été transmis à l’équipe SMI. Nous vous répondrons dans les meilleurs délais.' : 'Your message has been delivered to the SMI team. We will respond as soon as possible.'}</p><button type="button" className="button button-outline" onClick={() => setStatus('idle')}>{lang === 'fr' ? 'Nouvelle demande' : 'New request'}</button></div> : <><div className="form-row"><label>{lang === 'fr' ? 'Prénom' : 'First Name'} *<input required autoComplete="given-name" name="firstName" /></label><label>{lang === 'fr' ? 'Nom' : 'Last Name'} *<input required autoComplete="family-name" name="lastName" /></label></div><label>{lang === 'fr' ? 'Institution / Entreprise' : 'Institution / Company'} *<input required autoComplete="organization" name="institution" /></label><div className="form-row"><label>{lang === 'fr' ? 'Fonction' : 'Job Title'}<input autoComplete="organization-title" name="jobTitle" /></label><label>{lang === 'fr' ? 'Pays' : 'Country'} *<input required autoComplete="country-name" name="country" /></label></div><label>{lang === 'fr' ? 'Email professionnel' : 'Business Email'} *<input required type="email" autoComplete="email" name="email" /></label><label>{lang === 'fr' ? 'Domaine d’intérêt' : 'Area of Interest'} *<select required name="interest" defaultValue=""><option value="" disabled>{lang === 'fr' ? 'Sélectionner' : 'Select'}</option>{interests.map(item => <option key={item}>{item}</option>)}</select></label><label>Message *<textarea required name="message" rows={5} /></label><label className="form-honeypot" aria-hidden="true">Website<input name="_honey" tabIndex={-1} autoComplete="off" /></label><label className="consent"><input type="checkbox" required name="consent" value="accepted" />{lang === 'fr' ? 'J’accepte que SMI utilise ces informations pour répondre à ma demande.' : 'I agree that SMI may use this information to respond to my request.'}</label>{status === 'activation' && <p className="form-activation" role="status">{lang === 'fr' ? 'Un email d’activation a été envoyé à l’adresse de réception SMI. Cliquez sur « Activate Form », puis renvoyez cette demande.' : 'An activation email was sent to the SMI receiving address. Click “Activate Form”, then submit this request again.'}</p>}{status === 'error' && <p className="form-error" role="alert">{lang === 'fr' ? 'L’envoi a échoué. Vérifiez votre connexion et réessayez, ou contactez-nous directement par email.' : 'Your request could not be sent. Check your connection and try again, or contact us directly by email.'}</p>}<button className="button button-primary" type="submit" disabled={status === 'submitting'}>{status === 'submitting' ? (lang === 'fr' ? 'Envoi en cours…' : 'Sending…') : (lang === 'fr' ? 'Envoyer la demande' : 'Send Request')} {status !== 'submitting' && <Arrow />}</button></>}</form></section></Layout>
 }
 
 function LegalPage({ kind }: { kind: 'privacy' | 'legal' }) { const lang = useLang(); const privacy = kind === 'privacy'; return <Layout><Seo title={`${privacy ? 'Privacy' : 'Legal'} | SMI`} description="SMI corporate information." /><section className="legal-page content"><p className="eyebrow">SMI</p><h1>{privacy ? (lang === 'fr' ? 'Politique de confidentialité' : 'Privacy Policy') : (lang === 'fr' ? 'Mentions légales' : 'Legal Notice')}</h1><p>{lang === 'fr' ? 'Cette page doit être finalisée et validée juridiquement avant la mise en production.' : 'This page must be completed and legally reviewed before production.'}</p></section></Layout> }

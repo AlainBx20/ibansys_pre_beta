@@ -15,7 +15,7 @@ export const banks = [
 
 export const copy = {
   fr: {
-    nav: { solutions: 'Solutions', expertise: 'Expertise', why: 'Pourquoi SMI', success: 'Références', insights: 'Analyses', careers: 'Carrières', expert: 'Parler à un expert', demo: 'Demander une démonstration' },
+    nav: { home: 'Accueil', solutions: 'Solutions', expertise: 'Expertise', why: 'Pourquoi SMI', success: 'Références', insights: 'Analyses', careers: 'Carrières', expert: 'Parler à un expert', demo: 'Demander une démonstration' },
     home: {
       eyebrow: 'TECHNOLOGIE BANCAIRE • TRADE FINANCE • MESSAGERIE FINANCIÈRE',
       title: 'L’expertise bancaire au service de la transformation.',
@@ -33,7 +33,7 @@ export const copy = {
     common: { explore: 'Explorer', talk: 'Parler à un expert', requestDemo: 'Demander une démonstration', since: 'Depuis 1991', read: 'Lire l’analyse', all: 'Voir toutes les analyses' },
   },
   en: {
-    nav: { solutions: 'Solutions', expertise: 'Expertise', why: 'Why SMI', success: 'Customer Success', insights: 'Insights', careers: 'Careers', expert: 'Talk to an Expert', demo: 'Request a Demo' },
+    nav: { home: 'Home', solutions: 'Solutions', expertise: 'Expertise', why: 'Why SMI', success: 'Customer Success', insights: 'Insights', careers: 'Careers', expert: 'Talk to an Expert', demo: 'Request a Demo' },
     home: {
       eyebrow: 'BANKING TECHNOLOGY • TRADE FINANCE • FINANCIAL MESSAGING',
       title: 'Banking expertise. Technology that moves finance forward.',
