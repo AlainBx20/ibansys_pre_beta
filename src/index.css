@@ -175,7 +175,7 @@ main { overflow: hidden; }
 .flow-pipeline { position: relative; display: grid; gap: 15px; padding-top: 22px; }
 .flow-spine { position: absolute; z-index: 0; left: 23px; top: 42px; bottom: 42px; width: 2px; background: linear-gradient(#badce7,#1682b3 28%,#1682b3 72%,#badce7); }
 .flow-spine::after { content: ''; position: absolute; left: -3px; bottom: -1px; width: 7px; height: 7px; border-right: 1.5px solid var(--blue); border-bottom: 1.5px solid var(--blue); transform: rotate(45deg); }
-.flow-spine i { position: absolute; top: 0; left: -3px; width: 8px; height: 8px; border: 2px solid #eef8fa; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 0 4px rgba(89,195,212,.15); animation: flow-packet 4.2s linear infinite; }
+.flow-spine i { position: absolute; top: 0; left: -3px; width: 8px; height: 8px; border: 2px solid #eef8fa; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 0 4px rgba(89,195,212,.15); animation: flow-packet 9s linear infinite; }
 .flow-row { position: relative; z-index: 1; display: grid; grid-template-columns: 48px minmax(0,1fr); align-items: center; gap: 15px; }
 .flow-node { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid #acd3e2; border-radius: 50%; background: #fff; color: var(--blue); font-size: 9px; font-weight: 800; box-shadow: 0 7px 18px rgba(18,70,100,.1); transition: transform .34s cubic-bezier(.22,1,.36,1), box-shadow .34s ease, border-color .34s ease; }
 .flow-row-focus .flow-node { color: #fff; background: var(--blue); border-color: var(--blue); box-shadow: 0 0 0 5px #e3f2f7,0 7px 18px rgba(20,120,176,.2); }
