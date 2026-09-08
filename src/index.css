@@ -359,3 +359,342 @@ main { overflow: hidden; }
 }
 
 @keyframes message-travel-mobile { from { top: 0; } to { top: 100%; } }
+
+.values-gallery { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 36px 28px; }
+.value-print { min-width: 0; }
+.value-print-art { position: relative; overflow: hidden; border-radius: 10px; background: #eef6f8; aspect-ratio: 1.5; }
+.value-print-art::before { content: ''; position: absolute; width: 70%; aspect-ratio: 1; border: 1px solid rgba(20,120,176,.09); border-radius: 50%; left: 15%; top: -25%; }
+.value-print-art svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.value-print-art g { fill: rgba(255,255,255,.6); stroke: #1478b0; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 10px 5px rgba(20,120,176,.10)); transform-origin: center; transition: transform .5s cubic-bezier(.22,1,.36,1); }
+.value-print:hover .value-print-art g { transform: translateY(-7px); }
+.print-shadow { fill: #1478b0; opacity: .045; }
+.print-index { position: absolute; top: 22px; left: 24px; font-size: 11px; color: #698c9e; font-weight: 650; letter-spacing: .12em; }
+.value-print-1 .value-print-art,.value-print-4 .value-print-art { background: #e5f1f7; }
+.value-print-2 .value-print-art,.value-print-3 .value-print-art { background: #f2f6f5; }
+.value-print-copy { padding: 21px 2px 8px; }
+.value-print-copy h3 { margin: 0 0 8px; font-size: 25px; font-weight: 650; letter-spacing: -.035em; }
+.value-print-copy p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+@media(max-width: 950px) { .values-gallery { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width: 540px) { .values-gallery { grid-template-columns: 1fr; gap: 28px; }.value-print-art { aspect-ratio: 1.65; }.value-print-copy h3 { font-size: 23px; } }
+@media(prefers-reduced-motion: reduce) { .value-print-art g { transition: none; }.value-print:hover .value-print-art g { transform: none; } }
+
+.values-connected {
+  position: relative;
+  max-width: 980px;
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 136px minmax(0, 1fr);
+  grid-template-rows: repeat(3, 218px);
+  gap: 12px 20px;
+  padding: 10px 0 16px;
+}
+
+/* --- SVG Branch Connections (Subtle & Clean) --- */
+.values-branches {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+.branch-line-base {
+  fill: none;
+  stroke: #d6e5ed;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 0.25s ease;
+}
+.branch-line-active {
+  fill: none;
+  stroke: #1478b0;
+  stroke-width: 2.25;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 0.25s ease;
+}
+
+/* --- Central SMI Anchor (Compact & Matte) --- */
+.values-smi-anchor {
+  position: relative;
+  z-index: 2;
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+  justify-self: center;
+  width: 132px;
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 8px;
+  gap: 5px;
+  background: #ffffff;
+  border: 1.5px solid #c4dbe6;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+.values-smi-anchor:hover {
+  transform: scale(1.02);
+  border-color: #1478b0;
+  box-shadow: 0 6px 18px rgba(20, 120, 176, 0.12);
+}
+.values-smi-anchor.has-active {
+  border-color: #1478b0;
+  box-shadow: 0 4px 16px rgba(20, 120, 176, 0.1);
+}
+.values-smi-anchor .brand-logo {
+  width: 88px;
+  height: 38px;
+  object-fit: contain;
+}
+.smi-hub-title {
+  color: #475569;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.smi-hub-badge {
+  color: #1478b0;
+  font-size: 8px;
+  font-weight: 700;
+  background: #eef6fa;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid #d0e4ee;
+  white-space: nowrap;
+}
+
+/* --- Value Cards --- */
+.values-connected .value-print {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #ffffff;
+  padding: 11px 14px;
+  border: 1px solid #dce8ef;
+  border-radius: 13px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.035);
+  cursor: pointer;
+  user-select: none;
+  text-align: left;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.values-connected .value-print:hover {
+  border-color: #8bbdd5;
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.07);
+}
+.values-connected .value-print:focus-visible {
+  border-color: #1478b0;
+  box-shadow: 0 0 0 2px rgba(20, 120, 176, 0.2);
+}
+.values-connected .value-print.is-active {
+  border-color: #1478b0;
+  background: #fbfdff;
+  box-shadow: 0 5px 18px rgba(20, 120, 176, 0.11);
+}
+
+.values-connected .value-print-0 { grid-column: 1; grid-row: 1; }
+.values-connected .value-print-1 { grid-column: 1; grid-row: 2; }
+.values-connected .value-print-2 { grid-column: 1; grid-row: 3; }
+.values-connected .value-print-3 { grid-column: 3; grid-row: 1; }
+.values-connected .value-print-4 { grid-column: 3; grid-row: 2; }
+.values-connected .value-print-5 { grid-column: 3; grid-row: 3; }
+
+/* Top Row: Icon + Meta */
+.value-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+.values-connected .value-print-art {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #f1f7fa;
+  border: 1px solid #e1edf3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.values-connected .value-print.is-active .value-print-art {
+  background: #e5f2f8;
+  border-color: #b0d7ea;
+}
+.values-connected .value-print-art svg {
+  width: 76%;
+  height: 76%;
+  display: block;
+}
+.values-connected .print-art-paths {
+  stroke: #1478b0;
+  stroke-width: 4;
+  fill: #fff;
+}
+.value-card-mark {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.value-metric-pill {
+  font-size: 10px;
+  font-weight: 700;
+  color: #1478b0;
+  background: #f0f7fb;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid #d4e8f3;
+}
+.values-connected .print-index {
+  position: static;
+  inset: auto;
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+}
+.values-connected .value-print.is-active .print-index {
+  color: #1478b0;
+}
+
+/* Card Content */
+.values-connected .value-print-copy {
+  min-width: 0;
+  padding: 0;
+}
+.value-print-copy h3 {
+  margin: 0 0 2px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: #0f172a;
+}
+.values-connected .value-print.is-active h3 {
+  color: #0d5f8c;
+}
+.value-tagline {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 450;
+  line-height: 1.4;
+}
+
+/* Drawer with smooth height open */
+.value-drawer {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.25s ease,
+              margin-top 0.25s ease;
+  margin-top: 0;
+}
+.values-connected .value-print.is-active .value-drawer {
+  max-height: 108px;
+  opacity: 1;
+  margin-top: 8px;
+}
+.value-detail {
+  margin: 0 0 8px;
+  color: #334155;
+  font-size: 11.5px;
+  line-height: 1.5;
+  border-top: 1px dashed #e2eaf0;
+  padding-top: 7px;
+}
+.value-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.value-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: #0369a1;
+  background: #f1f7fa;
+  border: 1px solid #d9eaf3;
+  padding: 1.5px 6px;
+  border-radius: 4px;
+}
+
+/* --- Responsive Adjustments --- */
+@media(max-width: 900px) {
+  .values-connected {
+    grid-template-columns: minmax(0, 1fr) 115px minmax(0, 1fr);
+    grid-template-rows: repeat(3, 236px);
+    gap: 12px 14px;
+  }
+  .values-smi-anchor {
+    width: 110px;
+    min-height: 76px;
+    padding: 8px 6px;
+  }
+  .values-smi-anchor .brand-logo {
+    width: 76px;
+    height: 32px;
+  }
+  .values-connected .value-print {
+    padding: 10px 12px;
+  }
+  .value-print-copy h3 {
+    font-size: 15px;
+  }
+}
+
+@media(max-width: 680px) {
+  .values-connected {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-left: 16px;
+  }
+  .values-branches {
+    display: none;
+  }
+  .values-connected::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 60px;
+    bottom: 50px;
+    border-left: 1.5px dashed #c0d8e4;
+  }
+  .values-smi-anchor {
+    position: relative;
+    align-self: center;
+    width: 100%;
+    max-width: 240px;
+    margin-bottom: 6px;
+  }
+  .values-connected .value-print {
+    position: relative;
+    width: 100%;
+    height: 228px;
+  }
+  .values-connected .value-print::before {
+    content: '';
+    position: absolute;
+    top: 22px;
+    right: 100%;
+    width: 10px;
+    border-top: 1.5px dashed #c0d8e4;
+  }
+}

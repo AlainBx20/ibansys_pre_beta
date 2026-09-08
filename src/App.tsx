@@ -75,6 +75,8 @@ function ScrollReveal() {
       '.iso-grid > *',
       '.reason-grid article',
       '.value-node',
+      '.value-print',
+      '.values-smi-anchor',
       '.why-principle',
       '.people-grid > *',
       '.commitment-row > div',
@@ -269,26 +271,114 @@ function ValuesJourney({ items }: { items: string[][] }) {
   </div>
 }
 
-function WhyValuesVisual({ items, lang }: { items: string[][]; lang: Lang }) {
-  return <div className="why-values-visual" aria-label={lang === 'fr' ? 'Les six engagements de SMI' : 'SMI’s six commitments'}>
-    <svg className="why-flow-art" viewBox="0 0 1200 620" preserveAspectRatio="none" aria-hidden="true"><path d="M-80 515C210 380 280 690 570 505S930 190 1280 300" /><path d="M-80 555C210 420 310 730 600 545S960 230 1280 340" /><circle cx="1080" cy="80" r="190" /></svg>
-    <div className="why-visual-header"><Logo /><span>{lang === 'fr' ? 'UNE CULTURE QUI GUIDE CHAQUE PROJET' : 'A CULTURE THAT GUIDES EVERY PROJECT'}</span></div>
-    <div className="why-story-layout">
-      <aside className="why-years-panel">
-        <span>{lang === 'fr' ? 'DEPUIS' : 'SINCE'}</span><strong>1991</strong>
-        <div><b>35</b><span>{lang === 'fr' ? <>ANS<br />D’EXPERTISE</> : <>YEARS OF<br />EXPERTISE</>}</span></div>
-        <p>{lang === 'fr' ? 'Une expérience bancaire qui se transforme en valeur pour chaque nouveau projet.' : 'Banking experience turned into value for every new project.'}</p>
-      </aside>
-      <div className="why-principles">
-        {items.map(([title, body], index) => <article className="why-principle" key={title}>
-          <span className="why-principle-number">{String(index + 1).padStart(2, '0')}</span>
-          <span className="why-principle-icon"><DiagramIcon type={index} /></span>
-          <div><h3>{title}</h3><p>{body}</p></div>
-        </article>)}
+interface ValueEngagement {
+  title: string;
+  tagline: string;
+  metric: string;
+  detail: string;
+  tags: string[];
+}
+
+function WhyValuesVisual({ items, lang }: { items: ValueEngagement[]; lang: Lang }) {
+  const [active, setActive] = useState<number | null>(0);
+
+  const art = [
+    <><path d="M65 115 150 65l85 50-85 50zM65 140l85 50 85-50M65 165l85 50 85-50"/><path d="M150 65V30m-16 14 16-14 16 14"/></>,
+    <><path d="M150 35 220 65v65c0 50-70 85-70 85s-70-35-70-85V65z"/><path d="m117 120 23 23 46-48"/></>,
+    <><path d="M65 195h45v-40h45v-40h45V75h40"/><path d="m211 47 29 28-29 28"/><circle cx="65" cy="195" r="9"/></>,
+    <><circle cx="115" cy="105" r="38"/><circle cx="185" cy="105" r="38"/><path d="M60 200v-20c0-38 50-54 90-25 40-29 90-13 90 25v20"/></>,
+    <><path d="M70 140c0-90 160-90 160 0M230 110v30h-30M230 115c0 90-160 90-160 0M70 145v-30h30"/><path d="m125 125 25-25 25 25-25 25z"/></>,
+    <><path d="M150 85c-25-20-55-25-90-15v115c35-10 65-5 90 15 25-20 55-25 90-15V70c-35-10-65-5-90 15v115"/><path d="M85 100c15 0 25 3 40 10m-40 20c15 0 25 3 40 10m50-30c15-7 25-10 40-10m-40 40c15-7 25-10 40-10"/></>,
+  ];
+
+  const branchPaths = [
+    "M500 210C440 210 455 72 410 72",   // 0: Expertise (top-left)
+    "M500 210H410",                     // 1: Fiabilité (mid-left)
+    "M500 210C440 210 455 348 410 348", // 2: Engagement (bottom-left)
+    "M500 210C560 210 545 72 590 72",   // 3: Proximité (top-right)
+    "M500 210H590",                     // 4: Adaptabilité (mid-right)
+    "M500 210C560 210 545 348 590 348", // 5: Transmission (bottom-right)
+  ];
+
+  return (
+    <div className="values-gallery values-connected" aria-label={lang === 'fr' ? 'Les six engagements de SMI' : 'SMI’s six commitments'}>
+      <svg className="values-branches" viewBox="0 0 1000 420" preserveAspectRatio="none" aria-hidden="true">
+        {branchPaths.map((d, index) => {
+          const isBranchActive = active === index;
+          return (
+            <g key={index} className={`branch-group ${isBranchActive ? 'is-active' : ''}`}>
+              <path d={d} className="branch-line-base" />
+              {isBranchActive && <path d={d} className="branch-line-active" />}
+            </g>
+          );
+        })}
+      </svg>
+
+      <div
+        className={`values-smi-anchor ${active !== null ? 'has-active' : ''}`}
+        onClick={() => setActive(null)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(null); } }}
+        title={lang === 'fr' ? 'Vue d’ensemble' : 'Overview'}
+      >
+        <Logo />
+        <span className="smi-hub-title">{lang === 'fr' ? 'NOS ENGAGEMENTS' : 'OUR COMMITMENTS'}</span>
+        {active !== null && (
+          <span className="smi-hub-badge">
+            {items[active]?.title}
+          </span>
+        )}
       </div>
+
+      {items.map((item, index) => {
+        const isActive = active === index;
+        return (
+          <article
+            className={`value-print value-print-${index} ${isActive ? 'is-active' : ''}`}
+            key={item.title}
+            onClick={() => setActive(isActive ? null : index)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setActive(isActive ? null : index);
+              }
+            }}
+            aria-expanded={isActive}
+          >
+            <div className="value-card-top">
+              <div className="value-card-mark">
+                <div className="value-print-art" aria-hidden="true">
+                  <svg viewBox="0 0 300 250">
+                    <ellipse className="print-shadow" cx="150" cy="222" rx="72" ry="8"/>
+                    <g className="print-art-paths">{art[index]}</g>
+                  </svg>
+                </div>
+                <span className="print-index">0{index + 1}</span>
+              </div>
+              <span className="value-metric-pill">{item.metric}</span>
+            </div>
+
+            <div className="value-print-copy">
+              <h3>{item.title}</h3>
+              <p className="value-tagline">{item.tagline}</p>
+              
+              <div className="value-drawer">
+                <p className="value-detail">{item.detail}</p>
+                <div className="value-tags">
+                  {item.tags.map((tag) => (
+                    <span key={tag} className="value-tag">{tag}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </article>
+        );
+      })}
     </div>
-    <div className="why-timeline"><span>1991</span><div><i /><i /><i /><i /><i /><i /><b /></div><span>{lang === 'fr' ? 'AUJOURD’HUI' : 'TODAY'}</span></div>
-  </div>
+  );
 }
 
 function CommitmentJourney({ items }: { items: readonly string[] }) {
@@ -400,7 +490,97 @@ function TransformationPage() {
 
 function ExpertisePage() { const lang = useLang(); const expertise = ['Trade Finance & International Banking', 'Payments & Financial Messaging', 'SWIFT & ISO 20022', 'Banking Integration & Interoperability', 'Legacy & Application Modernisation', 'Data & Migration', 'Process Digitalisation & Automation', 'Banking Technology']; return <Layout><Seo title="Banking Expertise | Trade Finance, SWIFT & ISO 20022 | SMI" description="35 years of banking knowledge turned into technology." /><PageHero eyebrow="EXPERTISE" title={lang === 'fr' ? '35 ans à comprendre la banque. Et à transformer cette expertise en solutions.' : '35 Years of Banking Knowledge. Turned into Technology.'} body={lang === 'fr' ? 'Nous comprenons ce que fait la banque. Nous savons comment la technologie peut l’améliorer.' : 'We understand what the bank does. We know how technology can make it better.'} note="Banking expertise + Technology expertise" /><section className="section-pad content"><div className="expertise-list">{expertise.map((item, index) => <article key={item}><span>{String(index + 1).padStart(2, '0')}</span><h2>{item}</h2><p>{lang === 'fr' ? 'Expertise métier, architecture, intégration et accompagnement dans la durée.' : 'Business knowledge, architecture, integration and long-term support.'}</p></article>)}</div></section><section className="knowledge-banner"><div><p className="eyebrow">KNOWLEDGE TRANSFER</p><h2>Build Knowledge, Not Dependency.</h2><p>{lang === 'fr' ? 'Formation fonctionnelle, formation technique, documentation et partage continu.' : 'Functional training, technical training, documentation and continuous knowledge sharing.'}</p></div></section><FinalCta title={lang === 'fr' ? 'Un projet. Une équipe dédiée. Plusieurs expertises.' : 'One project. One dedicated team. Multiple areas of expertise.'} /></Layout> }
 
-function WhyPage() { const lang = useLang(); const values = lang === 'fr' ? [['Expertise', 'Comprendre avant d’agir.'], ['Fiabilité', 'Être digne de confiance.'], ['Engagement', 'Aller jusqu’au résultat.'], ['Proximité', 'Rester accessible.'], ['Adaptabilité', 'Évoluer avec la banque.'], ['Transmission', 'Renforcer l’autonomie du partenaire.']] : [['Expertise', 'Understand before acting.'], ['Reliability', 'Be worthy of trust.'], ['Commitment', 'Go through to the result.'], ['Proximity', 'Stay accessible.'], ['Adaptability', 'Evolve with banking.'], ['Knowledge Sharing', 'Build partner autonomy.']]; return <Layout><Seo title="Why SMI | 35 Years of Banking Expertise" description="More than a technology provider. A long-term banking partner." /><PageHero eyebrow="WHY SMI" title={lang === 'fr' ? 'Plus qu’un fournisseur de solutions. Un partenaire bancaire dans la durée.' : 'More Than a Technology Provider. A Long-Term Banking Partner.'} body={lang === 'fr' ? 'Depuis 1991, SMI évolue avec le secteur bancaire et transforme cette expérience accumulée en valeur pour chaque nouveau projet.' : 'Since 1991, SMI has evolved alongside banking and turns that accumulated experience into value for every new project.'} note="Understand. Deliver. Support. Evolve." /><section className="section-pad content why-values-section"><SectionHeading eyebrow={lang === 'fr' ? 'NOS VALEURS' : 'OUR VALUES'} title={lang === 'fr' ? 'Des engagements concrets.' : 'Concrete commitments.'} /><WhyValuesVisual items={values} lang={lang} /></section><section className="architecture section-pad"><div className="content"><SectionHeading eyebrow={lang === 'fr' ? 'NOTRE RESPONSABILITÉ' : 'OUR RESPONSIBILITY'} title={lang === 'fr' ? 'Notre responsabilité ne s’arrête pas au Go-Live.' : 'Our responsibility does not stop at Go-Live.'} body={lang === 'fr' ? 'Évolutions métier, standards, intégrations, amélioration fonctionnelle et accompagnement opérationnel.' : 'Business evolution, standards, integrations, functional improvement and operational support.'} light /><PartnerStrip /></div></section><FinalCta title={lang === 'fr' ? 'Nous adaptons la solution à la banque. Pas la banque à la solution.' : 'We adapt the solution to the bank. Not the bank to the solution.'} /></Layout> }
+function WhyPage() {
+  const lang = useLang();
+  const values: ValueEngagement[] = lang === 'fr' ? [
+    {
+      title: 'Expertise',
+      tagline: 'Comprendre avant d’agir.',
+      metric: '30+ ans',
+      detail: 'Maîtrise approfondie des flux transactionnels, du Trade Finance et des standards internationaux SWIFT & ISO 20022.',
+      tags: ['Trade Finance', 'ISO 20022', 'Normes BCT']
+    },
+    {
+      title: 'Fiabilité',
+      tagline: 'Être digne de confiance.',
+      metric: '99.9%',
+      detail: 'Architectures logicielles haute résilience garantissant une continuité absolue et une sécurité transactionnelle sans compromis.',
+      tags: ['Zéro rupture', 'Audit & Sécurité', 'Haute disponibilité']
+    },
+    {
+      title: 'Engagement',
+      tagline: 'Aller jusqu’au résultat.',
+      metric: '100%',
+      detail: 'Mobilisation totale de nos ingénieurs jusqu’à la recette métier, l’interfaçage Core Banking et le Go-Live en production.',
+      tags: ['Recette métier', 'Intégration CBS', 'Go-Live']
+    },
+    {
+      title: 'Proximité',
+      tagline: 'Rester accessible.',
+      metric: 'Direct',
+      detail: 'Interlocuteurs experts dédiés, réactivité immédiate et collaboration directe sur le terrain auprès des banques partenaires.',
+      tags: ['Support direct', 'Équipes locales', 'Écoute active']
+    },
+    {
+      title: 'Adaptabilité',
+      tagline: 'Évoluer avec la banque.',
+      metric: 'Sur-mesure',
+      detail: 'Nos progiciels s’adaptent au système d’information de chaque banque et absorbent les évolutions réglementaires en continu.',
+      tags: ['Interopérabilité', 'Sur-mesure', 'Évolutivité']
+    },
+    {
+      title: 'Transmission',
+      tagline: 'Renforcer l’autonomie du partenaire.',
+      metric: 'Pérenne',
+      detail: 'Transfert structuré de compétences, ateliers fonctionnels et documentation exhaustive pour bâtir une maîtrise durable.',
+      tags: ['Formation continue', 'Documentation', 'Autonomie']
+    }
+  ] : [
+    {
+      title: 'Expertise',
+      tagline: 'Understand before acting.',
+      metric: '30+ yrs',
+      detail: 'Deep mastery of banking transactional flows, Trade Finance operations and international standards including SWIFT and ISO 20022.',
+      tags: ['Trade Finance', 'ISO 20022', 'BCT Standards']
+    },
+    {
+      title: 'Reliability',
+      tagline: 'Be worthy of trust.',
+      metric: '99.9%',
+      detail: 'High-availability software architectures designed for absolute uptime, rigorous auditing and transactional security.',
+      tags: ['Zero Downtime', 'Security', 'Resilience']
+    },
+    {
+      title: 'Commitment',
+      tagline: 'Go through to the result.',
+      metric: '100%',
+      detail: 'Full team accountability from functional validation to Core Banking integration and successful production deployment.',
+      tags: ['Validation', 'CBS Integration', 'Go-Live']
+    },
+    {
+      title: 'Proximity',
+      tagline: 'Stay accessible.',
+      metric: 'Direct',
+      detail: 'Dedicated local engineering teams providing immediate responsiveness, agile collaboration and continuous hands-on support.',
+      tags: ['Direct Support', 'Local Teams', 'Agility']
+    },
+    {
+      title: 'Adaptability',
+      tagline: 'Evolve with banking.',
+      metric: 'Tailored',
+      detail: 'Modular systems engineered to fit each bank’s existing Core Banking infrastructure without disruptive replacements.',
+      tags: ['Interoperability', 'Tailored', 'Scalability']
+    },
+    {
+      title: 'Knowledge Sharing',
+      tagline: 'Build partner autonomy.',
+      metric: 'Enduring',
+      detail: 'Structured skill transfer, functional workshops and comprehensive documentation ensuring long-term bank autonomy.',
+      tags: ['Training', 'Documentation', 'Autonomy']
+    }
+  ];
+  return <Layout><Seo title="Why SMI | 35 Years of Banking Expertise" description="More than a technology provider. A long-term banking partner." /><PageHero eyebrow="WHY SMI" title={lang === 'fr' ? 'Plus qu’un fournisseur de solutions. Un partenaire bancaire dans la durée.' : 'More Than a Technology Provider. A Long-Term Banking Partner.'} body={lang === 'fr' ? 'Depuis 1991, SMI évolue avec le secteur bancaire et transforme cette expérience accumulée en valeur pour chaque nouveau projet.' : 'Since 1991, SMI has evolved alongside banking and turns that accumulated experience into value for every new project.'} note="Understand. Deliver. Support. Evolve." /><section className="section-pad content why-values-section"><SectionHeading eyebrow={lang === 'fr' ? 'NOS VALEURS' : 'OUR VALUES'} title={lang === 'fr' ? 'Des engagements concrets.' : 'Concrete commitments.'} /><WhyValuesVisual items={values} lang={lang} /></section><section className="architecture section-pad"><div className="content"><SectionHeading eyebrow={lang === 'fr' ? 'NOTRE RESPONSABILITÉ' : 'OUR RESPONSIBILITY'} title={lang === 'fr' ? 'Notre responsabilité ne s’arrête pas au Go-Live.' : 'Our responsibility does not stop at Go-Live.'} body={lang === 'fr' ? 'Évolutions métier, standards, intégrations, amélioration fonctionnelle et accompagnement opérationnel.' : 'Business evolution, standards, integrations, functional improvement and operational support.'} light /><PartnerStrip /></div></section><FinalCta title={lang === 'fr' ? 'Nous adaptons la solution à la banque. Pas la banque à la solution.' : 'We adapt the solution to the bank. Not the bank to the solution.'} /></Layout>;
+}
 
 function CustomerSuccessPage() { const lang = useLang(); const stories = lang === 'fr' ? [['Transformation ISO 20022', 'Messages, données, interfaces et contrôles', 'Analyse des flux, transformation, intégration et tests de bout en bout', 'Transition maîtrisée et continuité des opérations'], ['Digitalisation du Trade Finance', 'Processus documentaires complexes et fragmentés', 'Plateforme intégrée, workflows et connexion au Core Banking', 'Un environnement plus intégré, traçable et évolutif'], ['Modernisation legacy', 'Patrimoine applicatif riche mais difficile à faire évoluer', 'Évaluation, récupération des règles métier et migration contrôlée', 'Architecture modernisée et connaissance bancaire préservée']] : [['ISO 20022 Transformation', 'Messages, data, interfaces and controls', 'Flow analysis, transformation, integration and end-to-end testing', 'Controlled transition and operational continuity'], ['Trade Finance Digitalisation', 'Complex and fragmented documentary processes', 'Integrated platform, workflows and Core Banking connectivity', 'A more integrated, traceable and adaptable environment'], ['Legacy Modernisation', 'Rich application heritage that is hard to evolve', 'Assessment, business-rule recovery and controlled migration', 'Modernised architecture with banking knowledge preserved']]; return <Layout><Seo title="Customer Success | Banking Transformation Delivery | SMI" description="Trusted by banks. Proven through delivery." /><PageHero eyebrow="CUSTOMER SUCCESS" title={lang === 'fr' ? 'Des relations construites dans la durée. Des transformations qui produisent des résultats.' : 'Trusted by Banks. Proven Through Delivery.'} body={lang === 'fr' ? 'La mise en production est une étape. La valeur dans la durée est l’objectif.' : 'Go-live is a milestone. Long-term value is the objective.'} note="Long-term relationships. Personalised support. Dedicated teams." /><section className="section-pad"><PartnerStrip /></section><section className="section-pad content"><SectionHeading eyebrow="TRANSFORMATIONS" title={lang === 'fr' ? 'Le défi. Notre approche. Le résultat.' : 'The challenge. Our approach. The outcome.'} /><TransformationStories stories={stories} lang={lang} /></section><FinalCta title={lang === 'fr' ? 'Chaque banque est différente. Chaque transformation mérite sa propre approche.' : 'Every bank is different. Every transformation deserves its own approach.'} /></Layout> }
 
