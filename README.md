@@ -39,6 +39,7 @@ Every page is available in French and English under `/fr/` and `/en/`:
 - Insights
 - Careers
 - Contact
+- Privacy Policy, Legal Notice and Cookie Policy
 
 The language switch retains the equivalent page path.
 
@@ -55,4 +56,4 @@ The language switch retains the equivalent page path.
 
 ## Existing limitations
 
-The contact form validates its fields and demonstrates the follow-up state, but does not send or store messages. Connect it to the selected backend or CRM before production. Analytics events are pushed to `window.dataLayer` when an analytics provider creates it. Legal copy and partner-logo permissions require final review before launch.
+The contact form submits through FormSubmit and should be replaced or formally approved as the production CRM/email integration. Analytics events are pushed to `window.dataLayer` when an analytics provider creates it. Privacy, legal and cookie copy, partner-logo permissions, client stories, testimonials and performance claims require final review before launch.

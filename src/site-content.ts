@@ -65,6 +65,52 @@ export const worlds = {
   ],
 } as const
 
+export const products = {
+  fr: {
+    ibansys: {
+      title: 'IBANSYS',
+      subtitle: 'Plateforme de Trade Finance et de banque internationale',
+      eyebrow: 'TRADE FINANCE • BANQUE INTERNATIONALE',
+      hero: 'Digitaliser le Trade Finance sans perdre la maîtrise du métier.',
+      body: 'Une plateforme conçue pour digitaliser, intégrer et contrôler les opérations de Trade Finance et de banque internationale.',
+      capabilities: ['Crédits documentaires', 'Remises documentaires', 'Garanties internationales', 'Paiements internationaux', 'Financement du commerce', 'Banque correspondante'],
+      flow: ['Initiation', 'Contrôles métier', 'Circuit d’approbation', 'Contrôles de conformité', 'Messagerie financière', 'Règlement', 'Supervision'],
+      tags: ['Trade Finance', 'Crédits documentaires', 'Garanties', 'Paiements internationaux', 'Intégration au core banking'],
+    },
+    swift: {
+      title: 'SWIFT Messaging Hub',
+      subtitle: 'Le socle unique de la messagerie financière',
+      eyebrow: 'MT • MX • ISO 20022 • CBPR+',
+      hero: 'Unifiez votre messagerie financière. Préparez votre banque aux standards de demain.',
+      body: 'Le socle central pour gérer, transformer, contrôler, router, superviser et tracer les messages financiers à l’échelle de la banque.',
+      capabilities: ['Génération de messages', 'Normalisation', 'Transformation', 'Validation', 'Routage fonctionnel', 'Supervision et investigation', 'Archivage'],
+      flow: ['Créer', 'Normaliser', 'Transformer', 'Valider', 'Router', 'Envoyer / Recevoir', 'Superviser', 'Investiguer', 'Archiver'],
+      tags: ['MT / MX', 'ISO 20022', 'CBPR+', 'Validation', 'Routage', 'Supervision'],
+    },
+  },
+  en: {
+    ibansys: {
+      title: 'IBANSYS',
+      subtitle: 'Trade & International Banking Platform',
+      eyebrow: 'TRADE FINANCE • INTERNATIONAL BANKING',
+      hero: 'Digitise Trade Finance without losing control of the business.',
+      body: 'A platform designed to digitise, integrate and control Trade Finance and international banking operations.',
+      capabilities: ['Documentary Credits', 'Documentary Collections', 'International Guarantees', 'International Payments', 'Trade Financing', 'Correspondent Banking'],
+      flow: ['Initiation', 'Business Controls', 'Approval Workflow', 'Compliance Controls', 'Financial Messaging', 'Settlement', 'Monitoring'],
+      tags: ['Trade Finance', 'Documentary Credits', 'Guarantees', 'International Payments', 'Core Banking Integration'],
+    },
+    swift: {
+      title: 'SWIFT Messaging Hub',
+      subtitle: 'One Bank. One Messaging Backbone.',
+      eyebrow: 'MT • MX • ISO 20022 • CBPR+',
+      hero: 'Unify Financial Messaging. Be Ready for What Comes Next.',
+      body: 'The central backbone for managing, transforming, controlling, routing, monitoring and tracing financial messages across the bank.',
+      capabilities: ['Message Generation', 'Normalisation', 'Transformation', 'Validation', 'Functional Routing', 'Monitoring & Investigation', 'Archive'],
+      flow: ['Create', 'Normalize', 'Transform', 'Validate', 'Route', 'Send / Receive', 'Monitor', 'Investigate', 'Archive'],
+      tags: ['MT / MX', 'ISO 20022', 'CBPR+', 'Validation', 'Routing', 'Monitoring'],
+    },
+  },
+} as const
 export const insights = {
   fr: [
     { category: 'Standards Releases', title: 'SR2026 : ce que les banques doivent préparer', summary: 'Données structurées, applications sources et préparation opérationnelle.' },
