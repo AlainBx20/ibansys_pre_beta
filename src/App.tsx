@@ -1,5 +1,6 @@
-import { createElement, CSSProperties, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, useEffect, useRef, useState } from 'react'
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { createElement, CSSProperties, FormEvent, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { banks, copy, insights, Lang, products, worlds } from './site-content'
 
 const partnerTechnology = [
@@ -104,17 +105,94 @@ function track(event: string, details: Record<string, string> = {}) {
   analyticsWindow.dataLayer?.push({ event, ...details })
 }
 
+function LanguageLink({ targetLang, className, children, onSwitch }: { targetLang: Lang; className?: string; children: ReactNode; onSwitch?: () => void }) {
+  const lang = useLang()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const path = location.pathname.replace(/^\/(fr|en)/, `/${targetLang}`)
+
+  const handleClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (lang === targetLang) return
+    event.preventDefault()
+    const destination = `${path}${location.search}${location.hash}`
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const transitionDocument = document as Document & {
+      startViewTransition?: (callback: () => void) => { finished: Promise<void> }
+    }
+
+    track('language_selection', { locale: targetLang })
+    onSwitch?.()
+    if (!transitionDocument.startViewTransition || reducedMotion) {
+      navigate(destination)
+      return
+    }
+
+    document.documentElement.classList.add('is-language-transitioning')
+    const transition = transitionDocument.startViewTransition(() => {
+      flushSync(() => navigate(destination))
+    })
+    transition.finished.finally(() => document.documentElement.classList.remove('is-language-transitioning'))
+  }
+
+  return <Link to={path} className={className} aria-current={lang === targetLang ? 'true' : undefined} onClick={handleClick}>{children}</Link>
+}
+
 function LocalLink({ to, className, children, onClick, ariaLabel }: { to: string; className?: string; children: ReactNode; onClick?: () => void; ariaLabel?: string }) {
   const lang = useLang()
-  return <Link to={`/${lang}/${to}`.replace(/\/$/, '')} className={className} onClick={onClick} aria-label={ariaLabel}>{children}</Link>
+  const location = useLocation()
+  const targetPath = `/${lang}/${to}`.replace(/\/$/, '') || `/${lang}`
+
+  const handleClick = () => {
+    const currentPath = location.pathname.replace(/\/$/, '') || `/${lang}`
+    const cleanTargetPath = targetPath.split('?')[0].replace(/\/$/, '') || `/${lang}`
+
+    if (currentPath === cleanTargetPath) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    if (onClick) onClick()
+  }
+
+  return <Link to={targetPath} className={className} onClick={handleClick} aria-label={ariaLabel}>{children}</Link>
 }
 
 function ScrollToTop() {
   const { pathname } = useLocation()
+  const pagePath = pathname.replace(/^\/(fr|en)(?=\/|$)/, '') || '/'
+  const previousPage = useRef(pagePath)
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' })
-  }, [pathname])
+    if (previousPage.current !== pagePath) window.scrollTo({ top: 0, behavior: 'instant' })
+    previousPage.current = pagePath
+  }, [pagePath])
   return null
+}
+
+function ScrollToTopButton() {
+  const lang = useLang()
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const toggleVisibility = () => {
+      setVisible(window.scrollY > 300)
+    }
+    window.addEventListener('scroll', toggleVisibility, { passive: true })
+    toggleVisibility()
+    return () => window.removeEventListener('scroll', toggleVisibility)
+  }, [])
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  return <button
+    type="button"
+    className={`back-to-top-btn${visible ? ' is-visible' : ''}`}
+    onClick={scrollToTop}
+    aria-label={lang === 'fr' ? 'Haut de page' : 'Scroll to top'}
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  </button>
 }
 
 function ScrollReveal() {
@@ -215,7 +293,6 @@ function Header() {
   const [mobileSolutions, setMobileSolutions] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const solutionsRef = useRef<HTMLDivElement>(null)
-  const pathFor = (l: Lang) => location.pathname.replace(/^\/(fr|en)/, `/${l}`)
   const close = () => {
     setMobile(false)
     setSolutionsOpen(false)
@@ -275,7 +352,7 @@ function Header() {
         <div className="header-actions">
           <div className="lang-switch" role="group" aria-label={lang === 'fr' ? 'Changer de langue' : 'Switch language'}>
             <GlobeIcon />
-            {(['fr', 'en'] as const).map(option => <Link key={option} to={pathFor(option)} className={`lang-option${lang === option ? ' is-active' : ''}`} aria-current={lang === option ? 'true' : undefined} onClick={() => lang !== option && track('language_selection', { locale: option })}>{option.toUpperCase()}</Link>)}
+            {(['fr', 'en'] as const).map(option => <LanguageLink key={option} targetLang={option} className={`lang-option${lang === option ? ' is-active' : ''}`} onSwitch={close}>{option.toUpperCase()}</LanguageLink>)}
           </div>
           <LocalLink to="contact" className="button button-ghost header-expert">{t.nav.expert}</LocalLink>
           <LocalLink to="contact?intent=demo" className="button button-primary header-demo">{t.nav.demo}</LocalLink>
@@ -301,22 +378,30 @@ function Footer() {
   const lang = useLang(); const t = copy[lang]
   const columns = [
     { title: t.nav.solutions, items: [['solutions/ibansys', 'IBANSYS'], ['solutions/swift-plus', 'SWIFT+ Messaging Hub'], ['banking-transformation', lang === 'fr' ? 'Transformation bancaire' : 'Banking Transformation']] },
-    { title: t.nav.expertise, items: [['expertise', 'Trade Finance'], ['expertise', 'SWIFT & ISO 20022'], ['expertise', lang === 'fr' ? 'Intégration bancaire' : 'Banking Integration']] },
-    { title: lang === 'fr' ? 'Entreprise' : 'Company', items: [['why-smi', t.nav.why], ['customer-success', t.nav.success], ['insights', t.nav.insights], ['careers', t.nav.careers]] },
+    { title: lang === 'fr' ? 'Expertise & entreprise' : 'Expertise & company', items: [['expertise', t.nav.expertise], ['why-smi', t.nav.why], ['customer-success', t.nav.success], ['insights', t.nav.insights], ['careers', t.nav.careers]] },
   ]
   return <footer className="site-footer">
     <div className="footer-grid">
       <div className="footer-brand"><div className="footer-logo-box"><Logo footer /></div><p>Banking Technology.<br />Built on Expertise.</p><span>{t.common.since}</span></div>
       {columns.map(column => <div key={column.title} className="footer-column"><h3>{column.title}</h3>{column.items.map(([path, label]) => <LocalLink key={`${path}-${label}`} to={path}>{label}</LocalLink>)}</div>)}
-      <div className="footer-column"><h3>{lang === 'fr' ? 'Échanger' : 'Connect'}</h3><LocalLink to="contact">{t.nav.expert}</LocalLink><LocalLink to="contact?intent=demo">{t.nav.demo}</LocalLink><a href="mailto:contact@societelemondeinformatique.com">contact@societelemondeinformatique.com</a><a href="tel:+21653928121">+216 53 928 121</a></div>
+      <div className="footer-column footer-contact">
+        <h3>CONTACT</h3>
+        <p>{lang === 'fr' ? 'Un projet bancaire ? Parlons-en.' : 'A banking project? Let’s talk.'}</p>
+        <div className="footer-contact-details">
+          <a href="mailto:contact@societelemondeinformatique.com"><small>Email</small><strong>contact@societelemondeinformatique.com</strong></a>
+          <a href="tel:+21653928121"><small>{lang === 'fr' ? 'Téléphone' : 'Phone'}</small><strong>+216 53 928 121</strong></a>
+        </div>
+        <span>11 Av. Louis Braille · Tunis, Tunisie</span>
+        <LocalLink to="contact" className="footer-contact-link">{lang === 'fr' ? 'Parler à un expert' : 'Talk to an expert'} <Arrow /></LocalLink>
+      </div>
     </div>
-    <div className="footer-bottom"><span>© 2026 SMI — Société Le Monde Informatique. {lang === 'fr' ? 'Tous droits réservés.' : 'All rights reserved.'}</span><div><LocalLink to="privacy">{lang === 'fr' ? 'Confidentialité' : 'Privacy'}</LocalLink><LocalLink to="legal">{lang === 'fr' ? 'Mentions légales' : 'Legal Notice'}</LocalLink><LocalLink to="cookies">{lang === 'fr' ? 'Cookies' : 'Cookies'}</LocalLink><Link to={`/${lang === 'fr' ? 'en' : 'fr'}`}>{lang === 'fr' ? 'EN' : 'FR'}</Link></div></div>
+    <div className="footer-bottom"><span>© 2026 SMI — Société Le Monde Informatique. {lang === 'fr' ? 'Tous droits réservés.' : 'All rights reserved.'}</span><div><LocalLink to="privacy">{lang === 'fr' ? 'Confidentialité' : 'Privacy'}</LocalLink><LocalLink to="legal">{lang === 'fr' ? 'Mentions légales' : 'Legal Notice'}</LocalLink><LocalLink to="cookies">{lang === 'fr' ? 'Cookies' : 'Cookies'}</LocalLink><LanguageLink targetLang={lang === 'fr' ? 'en' : 'fr'}>{lang === 'fr' ? 'EN' : 'FR'}</LanguageLink></div></div>
   </footer>
 }
 
 function Layout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
-  return <><ScrollToTop /><ScrollReveal /><Header /><main key={pathname} className="page-transition">{children}</main><Footer /></>
+  return <><ScrollToTop /><ScrollToTopButton /><ScrollReveal /><Header /><main key={pathname} className="page-transition">{children}</main><Footer /></>
 }
 
 function CtaPair({ primary, secondary }: { primary?: string; secondary?: string }) {
@@ -325,7 +410,9 @@ function CtaPair({ primary, secondary }: { primary?: string; secondary?: string 
 }
 
 function PartnerStrip({ technology = false }: { technology?: boolean }) {
-  const items = technology ? partnerTechnology : banks; const loop = [...items, ...items]
+  const items = technology ? partnerTechnology : banks
+  const sequence = technology ? [...items, ...items, ...items, ...items] : items
+  const loop = [...sequence, ...sequence]
   return <div className="logo-rail"><div className={`logo-track${technology ? ' logo-track-reverse' : ''}`}>{loop.map((item, index) => <div className="logo-card" data-partner={item.name.toLowerCase()} key={`${item.name}-${index}`}><img src={assetPath(item.logo)} alt={`${item.name} logo`} loading="lazy" /><span>{item.name}</span></div>)}</div></div>
 }
 
@@ -348,6 +435,7 @@ function PrinciplesParcours({ items, lang }: { items: PrincipleStory[]; lang: La
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
+    let scrollTimer: number | null = null
     const measure = () => {
       const element = wrapRef.current
       if (!element) return 0
@@ -364,9 +452,29 @@ function PrinciplesParcours({ items, lang }: { items: PrincipleStory[]; lang: La
       if (next === targetRef.current) frameRef.current = null
       else frameRef.current = requestAnimationFrame(animate)
     }
+    const handleScrollEnd = () => {
+      const element = wrapRef.current
+      if (!element) return
+      const rect = element.getBoundingClientRect()
+      const viewport = window.innerHeight - 68
+      if (rect.top > 68 || rect.bottom < window.innerHeight) return
+      const distance = rect.height - viewport
+      if (distance <= 0) return
+      const currentProgress = (68 - rect.top) / distance
+      const totalSteps = items.length - 1
+      const currentPos = currentProgress * totalSteps
+      const nearestIdx = Math.round(currentPos)
+      const diff = Math.abs(currentPos - nearestIdx)
+      if (diff > 0.002 && diff < 0.18) {
+        const targetY = window.scrollY + rect.top - 68 + (nearestIdx / totalSteps) * distance
+        window.scrollTo({ top: targetY, behavior: 'smooth' })
+      }
+    }
     const update = () => {
       targetRef.current = measure()
       if (frameRef.current === null) frameRef.current = requestAnimationFrame(animate)
+      if (scrollTimer !== null) clearTimeout(scrollTimer)
+      scrollTimer = window.setTimeout(handleScrollEnd, 180)
     }
     valueRef.current = measure()
     targetRef.current = valueRef.current
@@ -376,15 +484,26 @@ function PrinciplesParcours({ items, lang }: { items: PrincipleStory[]; lang: La
     return () => {
       window.removeEventListener('scroll', update)
       window.removeEventListener('resize', update)
+      if (scrollTimer !== null) clearTimeout(scrollTimer)
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
     }
-  }, [])
+  }, [items.length])
+
+  const scrollToPrinciple = (index: number) => {
+    const element = wrapRef.current
+    if (!element) return
+    const rect = element.getBoundingClientRect()
+    const viewport = window.innerHeight - 68
+    const distance = rect.height - viewport
+    const targetY = window.scrollY + rect.top - 68 + (index / (items.length - 1)) * distance
+    window.scrollTo({ top: targetY, behavior: 'smooth' })
+  }
 
   const position = progress * (items.length - 1)
   const selected = Math.min(items.length - 1, Math.round(position))
   const localProgress = Math.min(1, Math.max(0, position - Math.floor(position)))
   const smooth = (value: number) => value * value * (3 - 2 * value)
-  const directions = [-1, 1, -1, 1, 1, -1]
+  const directions = [-1, 1, -1, 1, -1, 1]
 
   return <section className="principles-parcours" aria-label={lang === 'fr' ? 'Les six principes SMI' : 'The six SMI principles'}>
     <div className="principles-intro content">
@@ -399,14 +518,14 @@ function PrinciplesParcours({ items, lang }: { items: PrincipleStory[]; lang: La
         <div className="principles-stage-grid" aria-hidden="true" />
         {items.map((item, index) => {
           const distance = Math.abs(position - index)
-          const fade = distance <= .34 ? 0 : smooth(Math.min(1, (distance - .34) / .56))
+          const fade = distance <= .16 ? 0 : smooth(Math.min(1, (distance - .16) / .42))
           const travel = Math.sign(position - index) * smooth(Math.min(1, distance))
           const direction = directions[index]
           return <article
             className={`principle-act${selected === index ? ' is-current' : ''}`}
             key={item.title}
-            aria-hidden={distance > .94}
-            style={{ opacity: 1 - fade, visibility: distance > .94 ? 'hidden' : 'visible', justifyContent: direction > 0 ? 'flex-end' : 'flex-start', pointerEvents: distance < .5 ? 'auto' : 'none' }}>
+            aria-hidden={distance > .58}
+            style={{ opacity: 1 - fade, visibility: distance > .58 ? 'hidden' : 'visible', justifyContent: direction > 0 ? 'flex-end' : 'flex-start', pointerEvents: distance < .5 ? 'auto' : 'none' }}>
             <span className={`principle-ghost ghost-${direction > 0 ? 'left' : 'right'}`} style={{ opacity: .055 * (1 - fade), transform: `translateY(-52%) translateX(${direction * travel * 90}px)` }}>{String(index + 1).padStart(2, '0')}</span>
             <div className={`principle-act-copy align-${direction > 0 ? 'right' : 'left'}`} style={{ transform: `translateX(${direction * -travel * 150}px) scale(${1 - smooth(Math.min(1, distance)) * .04})` }}>
               <span className="principle-kicker"><DiagramIcon type={index} /><b>{lang === 'fr' ? 'PRINCIPE' : 'PRINCIPLE'} {String(index + 1).padStart(2, '0')} / 06</b></span>
@@ -418,7 +537,7 @@ function PrinciplesParcours({ items, lang }: { items: PrincipleStory[]; lang: La
           </article>
         })}
         <nav className="principles-stations" aria-label={lang === 'fr' ? 'Progression' : 'Progress'}>
-          {items.map((item, index) => <span className={selected === index ? 'is-current' : ''} key={item.title}><small>{String(index + 1).padStart(2, '0')}</small><i /></span>)}
+          {items.map((item, index) => <button type="button" className={`principles-station-btn${selected === index ? ' is-current' : ''}`} onClick={() => scrollToPrinciple(index)} key={item.title} aria-label={`${lang === 'fr' ? 'Principe' : 'Principle'} ${index + 1}`}><small>{String(index + 1).padStart(2, '0')}</small><i /></button>)}
         </nav>
         <span className="principles-counter">{String(selected + 1).padStart(2, '0')} <i>—</i> {String(Math.round(localProgress * 100)).padStart(2, '0')}%</span>
       </div>
@@ -533,63 +652,28 @@ function WhyValuesVisual({ items, lang }: { items: ValueEngagement[]; lang: Lang
 
 function CommitmentJourney({ items }: { items: readonly string[] }) {
   const lang = useLang()
-  const [travelStep, setTravelStep] = useState(0)
-  const [reachedStep, setReachedStep] = useState<number | null>(0)
-  const [hoveredStep, setHoveredStep] = useState<number | null>(null)
-  const isHoveringRef = useRef(false)
   const phases = lang === 'fr' ? ['COMPRENDRE', 'ACCOMPAGNER', 'RESTER', 'ÉVOLUER'] : ['UNDERSTAND', 'SUPPORT', 'STAY', 'EVOLVE']
   const notes = lang === 'fr'
-    ? ['Cadrer le besoin autour du métier bancaire.', 'Construire avec une équipe dédiée.', 'Assurer la continuité après le déploiement.', 'Faire progresser la solution sans rupture.']
-    : ['Frame the need around banking reality.', 'Build with one dedicated team.', 'Maintain continuity after deployment.', 'Advance the solution without disruption.']
-
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    let current = 0
-    let direction = 1
-    let timer: number
-    const depart = () => {
-      if (isHoveringRef.current) {
-        timer = window.setTimeout(depart, 100)
-        return
-      }
-      setReachedStep(null)
-      const next = current + direction
-      setTravelStep(next)
-      timer = window.setTimeout(() => {
-        current = next
-        setReachedStep(current)
-        if (current === items.length - 1 || current === 0) direction *= -1
-        timer = window.setTimeout(depart, 700)
-      }, 2800)
-    }
-    timer = window.setTimeout(depart, 900)
-    return () => window.clearTimeout(timer)
-  }, [items.length])
-
-  const activeStep = hoveredStep ?? travelStep
-  const activeReachedStep = hoveredStep ?? reachedStep
-  const indicatorPosition = activeStep === items.length - 1
-    ? 'calc(100% - 12px)'
-    : `${activeStep / (items.length - 1) * 100}%`
-  return <div className={`commitment-journey${hoveredStep !== null ? ' is-hovering' : ''}`} aria-label={lang === 'fr' ? 'Cycle d’accompagnement SMI' : 'SMI partnership lifecycle'}>
-    <div className="commitment-head">
+    ? ['Vos processus, vos contraintes et vos priorités guident le cadrage du projet.', 'Des interlocuteurs dédiés réunissent expertise bancaire et maîtrise technique.', 'Après la mise en production, nos équipes accompagnent vos usages au quotidien.', 'Les solutions évoluent avec vos besoins et les standards du secteur bancaire.']
+    : ['Your processes, constraints and priorities shape the project from the start.', 'Dedicated people bring banking knowledge and technical expertise together.', 'After go-live, our teams support your day-to-day use of the solution.', 'Solutions evolve with your needs and the standards of the banking sector.']
+  const outcomes = lang === 'fr'
+    ? ['Une vision partagée', 'Une équipe à vos côtés', 'Une relation qui continue', 'Une progression maîtrisée']
+    : ['A shared understanding', 'A team by your side', 'A continuing relationship', 'Progress with control']
+  return <div className="partnership-roadmap" aria-label={lang === 'fr' ? 'Cycle d’accompagnement SMI' : 'SMI partnership lifecycle'}>
+    <div className="partnership-intro">
+      <p>{lang === 'fr' ? 'Du premier échange aux prochaines évolutions.' : 'From the first conversation to what comes next.'}<span>{lang === 'fr' ? 'Quatre engagements. Une même continuité.' : 'Four commitments. One continuous relationship.'}</span></p>
       <Logo />
-      <span><small>{lang === 'fr' ? 'CYCLE D’ACCOMPAGNEMENT' : 'PARTNERSHIP LIFECYCLE'}</small><strong>{lang === 'fr' ? 'Un engagement continu, du cadrage à l’évolution.' : 'Continuous commitment, from discovery to evolution.'}</strong></span>
-      <b>{lang === 'fr' ? 'PARTENARIAT DURABLE' : 'LONG-TERM PARTNERSHIP'}</b>
     </div>
-    <div className="commitment-track">
-      <div className="commitment-line" aria-hidden="true"><span /><i style={{ left: indicatorPosition }} /></div>
-      {items.map((item, index) => <div className={`commitment-step${hoveredStep === index ? ' is-hovered' : ''}`} key={item} onMouseEnter={() => { isHoveringRef.current = true; setHoveredStep(index); setTravelStep(index); setReachedStep(index) }} onMouseLeave={() => { isHoveringRef.current = false; setHoveredStep(null) }}>
-        <span className={`commitment-marker${activeReachedStep === index ? ' is-reached' : ''}`}><b>{String(index + 1).padStart(2, '0')}</b></span>
-        <article className="commitment-node">
-          <div className="commitment-icon"><DiagramIcon type={index + 1} /></div>
-          <small>{phases[index]}</small>
-          <h3>{item}</h3>
-          <p>{notes[index]}</p>
-          <span className="commitment-corner" aria-hidden="true" />
-        </article>
-      </div>)}
-    </div>
+    <ol className="partnership-steps">
+      {items.map((item, index) => <li className="partnership-step" key={item}>
+        <div className="partnership-step-top"><span>{String(index + 1).padStart(2, '0')}</span><DiagramIcon type={index + 1} /></div>
+        <small>{phases[index]}</small>
+        <h3>{item}</h3>
+        <p>{notes[index]}</p>
+        <div className="partnership-outcome"><span aria-hidden="true">↗</span>{outcomes[index]}</div>
+      </li>)}
+    </ol>
+    <div className="partnership-footer"><p>{lang === 'fr' ? 'Votre projet avance. Notre engagement reste.' : 'Your project moves forward. Our commitment stays.'}</p><LocalLink to="contact">{lang === 'fr' ? 'Parlons de votre projet' : 'Let’s discuss your project'} <Arrow /></LocalLink></div>
   </div>
 }
 
@@ -716,57 +800,80 @@ function TransformationStories({ stories, lang }: { stories: string[][]; lang: L
   </div>
 }
 
-function HomeHeroV3({ lang }: { lang: Lang }) {
+function HomeHeroV4({ lang }: { lang: Lang }) {
   const [flipped, setFlipped] = useState(false)
-  const reduceMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const flip = () => setFlipped(value => !value)
+  const [reduceMotion, setReduceMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  const [pageVisible, setPageVisible] = useState(() => !document.hidden)
+  const lastSwap = useRef(0)
+  const flip = () => {
+    const now = Date.now()
+    if (now - lastSwap.current < 1500) return
+    lastSwap.current = now
+    setFlipped(value => !value)
+  }
   useEffect(() => {
-    if (reduceMotion) return
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const updateMotion = () => setReduceMotion(media.matches)
+    const updateVisibility = () => setPageVisible(!document.hidden)
+    media.addEventListener('change', updateMotion)
+    document.addEventListener('visibilitychange', updateVisibility)
+    return () => {
+      media.removeEventListener('change', updateMotion)
+      document.removeEventListener('visibilitychange', updateVisibility)
+    }
+  }, [])
+  useEffect(() => {
+    if (reduceMotion || !pageVisible) return
     const timer = window.setTimeout(flip, 12000)
     return () => window.clearTimeout(timer)
-  }, [flipped, reduceMotion])
+  }, [flipped, reduceMotion, pageVisible])
 
   const lines = lang === 'fr'
-    ? ["L’expertise", 'bancaire au', 'service de la', 'transformation.']
-    : ['Banking expertise.', 'Technology that', 'moves finance', 'forward.']
+    ? ["L’expertise bancaire", 'au service de la', 'transformation.']
+    : ['Banking expertise.', 'Technology that moves', 'finance forward.']
   const stats = lang === 'fr'
-    ? ["35 ans d’expertise bancaire", 'Partenariats durables', 'Équipes dédiées', 'Accompagnement personnalisé']
-    : ['35 years of banking expertise', 'Long-term partnerships', 'Dedicated teams', 'Personalised support']
+    ? [['35 ans', 'D’expertise bancaire'], ['Dans la durée', 'Des partenariats durables'], ['Équipes dédiées', 'Expertises métier et technique'], ['À vos côtés', 'Un accompagnement personnalisé']]
+    : [['35 years', 'Of banking expertise'], ['Long term', 'Lasting partnerships'], ['Dedicated teams', 'Banking and technology expertise'], ['By your side', 'Personalised support']]
   const nodes = [
-    { x: 260, y: 290, r: 40 }, { x: 118, y: 138, r: 44 }, { x: 408, y: 176, r: 34 },
-    { x: 404, y: 424, r: 27 }, { x: 140, y: 432, r: 76 },
+    { x: 470, y: 585, r: 46 }, { x: 244, y: 372, r: 51 }, { x: 631, y: 429, r: 40 },
+    { x: 613, y: 727, r: 35 }, { x: 297, y: 742, r: 100 },
   ]
 
-  return <section className={`home-v3${flipped ? ' is-flipped' : ''}`}>
-    <span className="home-v3-wedge home-v3-wedge-left" aria-hidden="true" />
-    <span className="home-v3-wedge home-v3-wedge-right" aria-hidden="true" />
-    <span className="home-v3-grid" aria-hidden="true" />
-    <div className="home-v3-stage">
-      <div className="home-v3-copy">
+  return <section className={`home-v4${flipped ? ' is-flipped' : ''}`}>
+    <div className="home-v4-stage">
+      <span className="home-v4-wedge home-v4-wedge-left" aria-hidden="true" />
+      <span className="home-v4-grid" aria-hidden="true" />
+      <div className="home-v4-panels">
+      <div className="home-v4-copy">
         <div>
-          <p className="home-v3-eyebrow">{lang === 'fr' ? 'TECHNOLOGIE BANCAIRE · TRADE FINANCE · MESSAGERIE FINANCIÈRE' : 'BANKING TECHNOLOGY · TRADE FINANCE · FINANCIAL MESSAGING'}</p>
-          <h1>{lines.map((line, index) => <span key={line}><b className={index === lines.length - 1 ? 'home-v3-title-accent' : undefined} style={{ '--hero-line-delay': `${140 + index * 110}ms` } as CSSProperties}>{line}</b></span>)}</h1>
-          <i className="home-v3-rule" aria-hidden="true" />
-          <p className="home-v3-body">{lang === 'fr' ? <>Depuis 1991, <strong>SMI</strong> conçoit et déploie des solutions technologiques dédiées aux banques et institutions financières. Du <strong>Trade Finance</strong> à la messagerie <strong>SWIFT et ISO 20022</strong>, nous accompagnons les transformations critiques avec expertise métier, maîtrise technologique et proximité.</> : <>Since 1991, <strong>SMI</strong> has designed and delivered technology solutions for banks and financial institutions. From <strong>Trade Finance</strong> to <strong>SWIFT and ISO 20022</strong> messaging, we support critical transformations through business expertise, technology mastery and close collaboration.</>}</p>
-          <div className="home-v3-actions"><LocalLink to="solutions/ibansys" className="button button-primary">{lang === 'fr' ? 'Découvrir nos solutions' : 'Discover our solutions'} <Arrow /></LocalLink><LocalLink to="contact" className="button button-outline">{lang === 'fr' ? 'Parler à un expert' : 'Talk to an expert'}</LocalLink></div>
+          <p className="home-v4-eyebrow">{lang === 'fr' ? 'TECHNOLOGIE BANCAIRE · TRADE FINANCE · MESSAGERIE FINANCIÈRE' : 'BANKING TECHNOLOGY · TRADE FINANCE · FINANCIAL MESSAGING'}</p>
+          <h1>{lines.map((line, index) => <span key={line}><b className={index === lines.length - 1 ? 'home-v4-title-accent' : undefined} style={{ '--hero-line-delay': `${140 + index * 110}ms` } as CSSProperties}>{line}</b></span>)}</h1>
+          <i className="home-v4-rule" aria-hidden="true" />
+          <p className="home-v4-body">{lang === 'fr' ? <>Depuis 1991, <strong>SMI</strong> accompagne les banques dans leurs transformations critiques : <strong>Trade Finance</strong>, messagerie <strong>SWIFT et ISO 20022</strong>. Expertise métier, maîtrise technologique et proximité.</> : <>Since 1991, <strong>SMI</strong> has supported banks through critical transformations: <strong>Trade Finance</strong>, <strong>SWIFT and ISO 20022</strong> messaging. Banking expertise, technology mastery and close collaboration.</>}</p>
+          <div className="home-v4-actions"><LocalLink to="solutions/ibansys" className="button button-primary">{lang === 'fr' ? 'Découvrir nos solutions' : 'Discover our solutions'} <Arrow /></LocalLink><LocalLink to="contact" className="button button-outline">{lang === 'fr' ? 'Parler à un expert' : 'Talk to an expert'}</LocalLink></div>
         </div>
       </div>
-      <button type="button" className="home-v3-mark" onClick={flip} aria-label={flipped ? (lang === 'fr' ? 'Afficher Excellence' : 'Show Excellence') : (lang === 'fr' ? 'Afficher Innovation' : 'Show Innovation')}>
-        <svg className="home-v3-symbol" viewBox="0 0 520 520" aria-hidden="true">
-          <g className="home-v3-skeleton">
-            {nodes.slice(1).map(node => <line key={`skeleton-line-${node.x}-${node.y}`} x1="260" y1="290" x2={node.x} y2={node.y} />)}
+
+      <div className="home-v4-mark">
+      <button type="button" className="home-v4-symbol-button" onClick={flip} aria-label={lang === 'fr' ? 'Faire pivoter le symbole SMI' : 'Rotate the SMI symbol'}>
+        <svg className="home-v4-symbol" viewBox="186 310 496 543" aria-hidden="true">
+          <g className="home-v4-skeleton">
+            {nodes.slice(1).map(node => <line key={`skeleton-line-${node.x}-${node.y}`} x1="470" y1="585" pathLength="1" x2={node.x} y2={node.y} />)}
             {nodes.map(node => <circle key={`skeleton-node-${node.x}-${node.y}`} cx={node.x} cy={node.y} r={node.r} />)}
           </g>
-          <g className="home-v3-arms">{nodes.slice(1).map((node, index) => <line key={`${node.x}-${node.y}`} x1="260" y1="290" x2={node.x} y2={node.y} style={{ '--hero-node-delay': `${620 + index * 190}ms` } as CSSProperties} />)}</g>
-          <g className="home-v3-nodes">{nodes.map((node, index) => <circle key={`${node.x}-${node.y}`} cx={node.x} cy={node.y} r={node.r} style={{ '--hero-node-delay': `${index ? 760 + index * 190 : 480}ms` } as CSSProperties} />)}</g>
-          <g className="home-v3-pings">{nodes.map((node, index) => <circle key={`${node.x}-${node.y}`} cx={node.x} cy={node.y} r={node.r} style={{ '--hero-ping-delay': `${2900 + index * 680}ms` } as CSSProperties} />)}</g>
+          <g className="home-v4-arms">{nodes.slice(1).map((node, index) => <line key={`${node.x}-${node.y}`} x1="470" y1="585" pathLength="1" x2={node.x} y2={node.y} style={{ '--hero-node-delay': `${620 + index * 190}ms` } as CSSProperties} />)}</g>
+          <g className="home-v4-nodes">{nodes.map((node, index) => <circle key={`${node.x}-${node.y}`} cx={node.x} cy={node.y} r={node.r} style={{ '--hero-node-delay': `${index ? 760 + index * 190 : 480}ms` } as CSSProperties} />)}</g>
         </svg>
-        <span className="home-v3-word"><b className="home-v3-excellence">EXCELLENCE</b><b className="home-v3-innovation">INNOVATION</b></span>
-        <span className="home-v3-signature"><Logo /><i /><small>{lang === 'fr' ? 'DEPUIS 1991' : 'SINCE 1991'}</small></span>
-        <span className="home-v3-toggle" aria-hidden="true"><i /><i /></span>
       </button>
+        <span className="home-v4-word"><b><span>EXCELLENCE</span><i>&amp;</i><span>INNOVATION</span></b></span>
+        <p key={flipped ? 'innovation' : 'excellence'} className="home-v4-promise">{flipped
+          ? (lang === 'fr' ? 'Faire évoluer la banque. Préserver l’essentiel.' : 'Move banking forward. Preserve what matters.')
+          : (lang === 'fr' ? 'La maîtrise du métier. L’exigence du détail.' : 'Banking mastery. Attention to every detail.')}
+        </p>
+      </div>
+      </div>
     </div>
-    <div className="home-v3-stats">{stats.map((stat, index) => <span key={stat} style={{ '--hero-stat-delay': `${900 + index * 90}ms` } as CSSProperties}>{stat}</span>)}</div>
+    <div className="home-v4-stats">{stats.map((stat, index) => <span key={stat[0]} style={{ '--hero-stat-delay': `${900 + index * 90}ms` } as CSSProperties}><strong>{stat[0]}</strong><small>{stat[1]}</small></span>)}</div>
   </section>
 }
 
@@ -791,33 +898,31 @@ function HomePage() {
   const commitments = lang === 'fr' ? ['Comprendre avant de construire', 'Accompagner de façon personnalisée', 'Être présent dans la durée', 'Faire évoluer sans fragiliser'] : ['Understand before building', 'Support each bank personally', 'Stay for the long term', 'Evolve without disruption']
   return <Layout>
     <Seo title="SMI | Banking Technology, Trade Finance & Financial Messaging" description={t.home.body} />
-    <HomeHeroV3 lang={lang} />
+    <HomeHeroV4 lang={lang} />
     <section className="partner-intro section-pad"><div className="content"><SectionHeading eyebrow={lang === 'fr' ? 'CONFIANCE' : 'TRUST'} title={lang === 'fr' ? 'Une expertise construite dans la durée.' : 'Expertise built over time.'} body={lang === 'fr' ? 'Des partenariats bancaires de longue date. Un accompagnement personnalisé. Des équipes dédiées.' : 'Long-standing banking partnerships. Personalised support. Dedicated teams.'} /><p className="strip-label">{lang === 'fr' ? 'PARTENAIRES BANCAIRES' : 'BANKING PARTNERS'}</p></div><PartnerStrip /><div className="content"><p className="strip-label strip-label-secondary">{lang === 'fr' ? 'PARTENAIRES TECHNOLOGIQUES' : 'TECHNOLOGY PARTNERS'}</p></div><PartnerStrip technology /></section>
-    <section className="section-pad content"><SectionHeading eyebrow={lang === 'fr' ? 'NOS DOMAINES' : 'OUR DOMAINS'} title={t.home.worldsTitle} /><div className="world-grid">{worlds[lang].map((world, index) => <article className="world-card" key={world.id}><span className="card-number">0{index + 1}</span><p className="eyebrow">{world.label}</p><h3>{world.title}</h3><p>{world.text}</p><div className="tag-list">{world.tags.map(tag => <span key={tag}>{tag}</span>)}</div><LocalLink to={world.href} className="text-link">{t.common.explore} <Arrow /></LocalLink></article>)}</div></section>
-    <section className="solutions-showcase section-pad"><div className="content"><SectionHeading eyebrow={lang === 'fr' ? 'SOLUTIONS PHARES' : 'FLAGSHIP SOLUTIONS'} title={t.home.solutionsTitle} light /><div className="product-grid"><ProductCard product={products[lang].ibansys} href="solutions/ibansys" /><ProductCard product={products[lang].swift} href="solutions/swift-plus" /></div></div></section>
+    <section className="domains-solutions section-pad content">
+      <SectionHeading eyebrow={lang === 'fr' ? 'NOS DOMAINES' : 'OUR DOMAINS'} title={t.home.worldsTitle} body={lang === 'fr' ? 'Trois domaines reliés par une même compréhension des opérations bancaires.' : 'Three connected domains grounded in the same understanding of banking operations.'} />
+      <div className="world-grid domain-offerings">{worlds[lang].map((world, index) => {
+        const product = world.id === 'trade' ? products[lang].ibansys : world.id === 'messaging' ? products[lang].swift : null
+        const brand = world.id === 'trade' ? 'IBANSYS' : 'SWIFT+'
+        return <article className={`world-card domain-solution-card${product ? "" : " domain-service"}`} key={world.id}>
+          <div className="domain-card-heading"><span className="card-number">0{index + 1}</span><p className="eyebrow">{world.label}</p><h3>{world.title}</h3></div>
+          {product && <div className="domain-product-brand"><img className={world.id === 'trade' ? 'product-logo product-logo-ibansys' : 'product-logo product-logo-swift'} src={assetPath(world.id === 'trade' ? '/IBANSYS.png' : '/swift+.png')} alt={brand} width="2172" height="724" /></div>}
+          <p>{world.text}</p>
+          <div className="tag-list">{(product ? product.tags : world.tags).map(tag => <span key={tag}>{tag}</span>)}</div>
+          <LocalLink to={world.href} className="text-link">{product ? `${t.common.explore} ${brand}` : lang === 'fr' ? 'Explorer notre approche' : 'Explore our approach'} <Arrow /></LocalLink>
+        </article>
+      })}</div>
+    </section>
     <section className="iso-section section-pad"><div className="content iso-grid"><div><p className="eyebrow">SWIFT • ISO 20022 • CBPR+</p><h2>{t.home.isoTitle}</h2><p>{t.home.isoBody}</p><LocalLink to="solutions/swift-plus" className="text-link text-link-light">{lang === 'fr' ? 'Explorer SWIFT+ Messaging Hub' : 'Explore SWIFT+ Messaging Hub'} <Arrow /></LocalLink></div><MessageFlow /></div></section>
     <PrinciplesParcours items={reasons} lang={lang} />
     <section className="people section-pad"><div className="content people-grid"><SectionHeading eyebrow={lang === 'fr' ? 'NOS ÉQUIPES' : 'OUR PEOPLE'} title={t.home.peopleTitle} body={lang === 'fr' ? 'L’expertise bancaire se construit avec le temps, la transmission et des équipes pluridisciplinaires.' : 'Banking expertise grows through time, knowledge sharing and multidisciplinary teams.'} /><div className="role-list">{roles.map(role => <div key={role}><span /><p>{role}</p></div>)}</div></div></section>
-    <section className="section-pad content commitments"><SectionHeading eyebrow={lang === 'fr' ? 'NOS ENGAGEMENTS' : 'OUR COMMITMENTS'} title={t.home.commitmentsTitle} /><CommitmentJourney items={commitments} /></section>
-    <section className="section-pad content"><SectionHeading eyebrow="INSIGHTS" title={lang === 'fr' ? 'Comprendre ce qui transforme la banque.' : 'Understand what is transforming banking.'} /><div className="insight-grid">{insights[lang].map(item => <InsightCard key={item.title} {...item} />)}</div><LocalLink to="insights" className="button button-outline section-action">{t.common.all}</LocalLink></section>
+    <section className="section-pad content commitments"><SectionHeading eyebrow={lang === 'fr' ? 'NOS ENGAGEMENTS' : 'OUR COMMITMENTS'} title={t.home.commitmentsTitle} body={lang === 'fr' ? 'Un accompagnement continu, du cadrage initial aux prochaines évolutions.' : 'Continuous support from initial framing through future evolution.'} /><CommitmentJourney items={commitments} /></section>
+    <section className="section-pad content"><SectionHeading eyebrow="INSIGHTS" title={lang === 'fr' ? 'Comprendre ce qui transforme la banque.' : 'Understand what is transforming banking.'} body={lang === 'fr' ? 'Des analyses claires pour préparer les décisions métier et technologiques.' : 'Clear perspectives to inform business and technology decisions.'} /><div className="insight-grid">{insights[lang].map(item => <InsightCard key={item.title} {...item} />)}</div><LocalLink to="insights" className="button button-outline section-action">{t.common.all}</LocalLink></section>
     <FinalCta title={t.home.finalTitle} />
   </Layout>
 }
 
-function ProductCard({ product, href }: { product: typeof products.fr.ibansys | typeof products.fr.swift | typeof products.en.ibansys | typeof products.en.swift; href: string }) {
-  const lang = useLang()
-  const hasPlus = product.title.includes('+')
-  const base = hasPlus ? product.title.replace('+', '') : product.title
-  return <article className="product-card">
-    <div>
-      <p className="eyebrow">{lang === 'fr' ? 'SOLUTION SMI' : 'SMI SOLUTION'}</p>
-      <h3 className={`product-name${product.title.startsWith('SWIFT Messaging') ? ' product-name-swift' : ''}`}>{base}{hasPlus && <span className="product-name-plus">+</span>}</h3>
-      <p>{product.subtitle}</p>
-    </div>
-    <div className="tag-list">{product.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
-    <LocalLink to={href} className="text-link">{lang === 'fr' ? `Explorer ${product.title}` : `Explore ${product.title}`} <Arrow /></LocalLink>
-  </article>
-}
 function MessageFlow() {
   const lang = useLang()
   const pipelineRef = useRef<HTMLDivElement>(null)
@@ -978,18 +1083,18 @@ function ProductPage({ kind }: { kind: 'ibansys' | 'swift' }) {
     <Seo title={`${data.title} | ${seoSuffix}`} description={data.body} />
     <PageHero eyebrow={data.eyebrow} title={data.hero} body={data.body} label={data.title} note={lang === 'fr' ? '35 ans d’expertise bancaire au service de la technologie.' : 'Built on 35 years of banking expertise.'} />
     <section className="section-pad content">
-      <SectionHeading eyebrow={lang === 'fr' ? 'VISION UNIFIÉE' : 'UNIFIED VISION'} title={visionTitle} />
+      <SectionHeading eyebrow={lang === 'fr' ? 'VISION UNIFIÉE' : 'UNIFIED VISION'} title={visionTitle} body={lang === 'fr' ? 'Centralisez les capacités essentielles sans perdre la lisibilité des opérations.' : 'Bring essential capabilities together without losing operational clarity.'} />
       <CapabilityMatrix items={data.capabilities} />
     </section>
     <section className="process-section section-pad">
       <div className="content">
-        <SectionHeading eyebrow={lang === 'fr' ? 'DE BOUT EN BOUT' : 'END TO END'} title={lifecycleTitle} />
+        <SectionHeading eyebrow={lang === 'fr' ? 'DE BOUT EN BOUT' : 'END TO END'} title={lifecycleTitle} body={lang === 'fr' ? 'Chaque étape reste visible, contrôlée et traçable dans un parcours cohérent.' : 'Every stage remains visible, controlled and traceable in one coherent journey.'} />
         <ProcessJourney steps={data.flow} />
       </div>
     </section>
     {isSwift ? <SwiftArchitecture /> : <IbansysIntegration />}
     <section className="section-pad content">
-      <SectionHeading eyebrow={lang === 'fr' ? 'POURQUOI SMI' : 'WHY SMI'} title={lang === 'fr' ? 'Une expertise métier au cœur de la solution.' : 'Banking expertise at the heart of the solution.'} />
+      <SectionHeading eyebrow={lang === 'fr' ? 'POURQUOI SMI' : 'WHY SMI'} title={lang === 'fr' ? 'Une expertise métier au cœur de la solution.' : 'Banking expertise at the heart of the solution.'} body={lang === 'fr' ? 'Des équipes qui relient la connaissance bancaire, la technologie et la continuité.' : 'Teams that connect banking knowledge, technology and continuity.'} />
       <div className="three-up">
         <InfoCard title={lang === 'fr' ? '35 ans' : '35 Years'} body={lang === 'fr' ? 'Une connaissance bancaire développée depuis 1991.' : 'Banking knowledge developed since 1991.'} />
         <InfoCard title={lang === 'fr' ? 'Équipe dédiée' : 'Dedicated Team'} body={lang === 'fr' ? 'Des profils fonctionnels et techniques tout au long du projet.' : 'Functional and technical specialists throughout the project.'} />
@@ -1002,8 +1107,8 @@ function ProductPage({ kind }: { kind: 'ibansys' | 'swift' }) {
   </Layout>
 }
 
-function PageHero({ eyebrow, title, body, label }: { eyebrow: string; title: string; body: string; label?: string; note?: string }) {
-  return <section className="page-hero"><div className="page-hero-inner"><div>{label && <span className="product-label">{label}</span>}<p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{body}</p><CtaPair /></div></div></section>
+function PageHero({ eyebrow, title, mobileTitle, body, label }: { eyebrow: string; title: string; mobileTitle?: string; body: string; label?: string; note?: string }) {
+  return <section className="page-hero"><div className="page-hero-inner"><div>{label && <span className="product-label">{label}</span>}<p className="eyebrow">{eyebrow}</p><h1><span className="page-hero-title-desktop">{title}</span>{mobileTitle && <span className="page-hero-title-mobile">{mobileTitle}</span>}</h1><p>{body}</p><CtaPair /></div></div></section>
 }
 
 function MobileArchitectureGraph({ kind, lang }: { kind: 'ibansys' | 'swift'; lang: Lang }) {
@@ -1166,7 +1271,7 @@ function ExpertisePage() {
     { short: 'Automation', title: 'Process Digitalisation & Automation', body: 'Document digitisation, approval workflows and automation of high-volume repetitive tasks close to operational teams.', points: ['Document digitisation', 'Approval workflows', 'Task automation'] },
     { short: 'Technology', title: 'Banking Technology', body: 'Architecture, security and operations form the technical foundations supporting every other area of expertise.', points: ['Technical architecture', 'Security', 'Operations and monitoring'] },
   ]
-  return <Layout><Seo title="Banking Expertise | Trade Finance, SWIFT & ISO 20022 | SMI" description="35 years of banking knowledge turned into technology." /><PageHero eyebrow="EXPERTISE" title={lang === 'fr' ? '35 ans à comprendre la banque. Et à transformer cette expertise en solutions.' : '35 Years of Banking Knowledge. Turned into Technology.'} body={lang === 'fr' ? 'Nous comprenons ce que fait la banque. Nous savons comment la technologie peut l’améliorer.' : 'We understand what the bank does. We know how technology can make it better.'} note="Banking expertise + Technology expertise" /><section className="expertise-chain-section"><ExpertiseChain items={domains} lang={lang} /></section><section className="knowledge-banner"><div><p className="eyebrow">KNOWLEDGE TRANSFER</p><h2>Build Knowledge, Not Dependency.</h2><p>{lang === 'fr' ? 'Formation fonctionnelle, formation technique, documentation et partage continu.' : 'Functional training, technical training, documentation and continuous knowledge sharing.'}</p></div></section><FinalCta title={lang === 'fr' ? 'Un projet. Une équipe dédiée. Plusieurs expertises.' : 'One project. One dedicated team. Multiple areas of expertise.'} /></Layout>
+  return <Layout><Seo title="Banking Expertise | Trade Finance, SWIFT & ISO 20022 | SMI" description="35 years of banking knowledge turned into technology." /><PageHero eyebrow="EXPERTISE" title={lang === 'fr' ? '35 ans à comprendre la banque. Et à transformer cette expertise en solutions.' : '35 Years of Banking Knowledge. Turned into Technology.'} mobileTitle={lang === 'fr' ? 'L’expertise bancaire devient technologie.' : 'Banking expertise becomes technology.'} body={lang === 'fr' ? 'Nous comprenons ce que fait la banque. Nous savons comment la technologie peut l’améliorer.' : 'We understand what the bank does. We know how technology can make it better.'} note="Banking expertise + Technology expertise" /><section className="expertise-chain-section"><ExpertiseChain items={domains} lang={lang} /></section><section className="knowledge-banner"><div><p className="eyebrow">KNOWLEDGE TRANSFER</p><h2>Build Knowledge, Not Dependency.</h2><p>{lang === 'fr' ? 'Formation fonctionnelle, formation technique, documentation et partage continu.' : 'Functional training, technical training, documentation and continuous knowledge sharing.'}</p></div></section><FinalCta title={lang === 'fr' ? 'Un projet. Une équipe dédiée. Plusieurs expertises.' : 'One project. One dedicated team. Multiple areas of expertise.'} /></Layout>
 }
 
 function WhyPage() {
@@ -1272,7 +1377,7 @@ function WhyPage() {
       tags: ['Precision', 'Fine Controls', 'Lasting Quality']
     }
   ];
-  return <Layout><Seo title="Why SMI | 35 Years of Banking Expertise" description="More than a technology provider. A long-term banking partner." /><PageHero eyebrow="WHY SMI" title={lang === 'fr' ? 'Plus qu’un fournisseur de solutions. Un partenaire bancaire dans la durée.' : 'More Than a Technology Provider. A Long-Term Banking Partner.'} body={lang === 'fr' ? 'Depuis 1991, SMI évolue avec le secteur bancaire et transforme cette expérience accumulée en valeur pour chaque nouveau projet.' : 'Since 1991, SMI has evolved alongside banking and turns that accumulated experience into value for every new project.'} note="Understand. Deliver. Support. Evolve." /><section className="section-pad content why-values-section"><SectionHeading eyebrow={lang === 'fr' ? 'NOS VALEURS' : 'OUR VALUES'} title={lang === 'fr' ? 'Des engagements concrets.' : 'Concrete commitments.'} /><WhyValuesVisual items={values} lang={lang} /></section><section className="architecture section-pad"><div className="content"><SectionHeading eyebrow={lang === 'fr' ? 'NOTRE RESPONSABILITÉ' : 'OUR RESPONSIBILITY'} title={lang === 'fr' ? 'Notre responsabilité ne s’arrête pas au Go-Live.' : 'Our responsibility does not stop at Go-Live.'} body={lang === 'fr' ? 'Évolutions métier, standards, intégrations, amélioration fonctionnelle et accompagnement opérationnel.' : 'Business evolution, standards, integrations, functional improvement and operational support.'} light /><PartnerStrip /></div></section><FinalCta title={lang === 'fr' ? 'Nous adaptons la solution à la banque. Pas la banque à la solution.' : 'We adapt the solution to the bank. Not the bank to the solution.'} /></Layout>;
+  return <Layout><Seo title="Why SMI | 35 Years of Banking Expertise" description="More than a technology provider. A long-term banking partner." /><PageHero eyebrow="WHY SMI" title={lang === 'fr' ? 'Plus qu’un fournisseur de solutions. Un partenaire bancaire dans la durée.' : 'More Than a Technology Provider. A Long-Term Banking Partner.'} mobileTitle={lang === 'fr' ? 'Un partenaire bancaire dans la durée.' : 'A long-term banking partner.'} body={lang === 'fr' ? 'Depuis 1991, SMI évolue avec le secteur bancaire et transforme cette expérience accumulée en valeur pour chaque nouveau projet.' : 'Since 1991, SMI has evolved alongside banking and turns that accumulated experience into value for every new project.'} note="Understand. Deliver. Support. Evolve." /><section className="section-pad content why-values-section"><SectionHeading eyebrow={lang === 'fr' ? 'NOS VALEURS' : 'OUR VALUES'} title={lang === 'fr' ? 'Des engagements concrets.' : 'Concrete commitments.'} body={lang === 'fr' ? 'Six principes guident notre manière de concevoir, livrer et faire évoluer chaque projet.' : 'Six principles guide how we design, deliver and evolve every project.'} /><WhyValuesVisual items={values} lang={lang} /></section><section className="architecture section-pad"><div className="content"><SectionHeading eyebrow={lang === 'fr' ? 'NOTRE RESPONSABILITÉ' : 'OUR RESPONSIBILITY'} title={lang === 'fr' ? 'Notre responsabilité ne s’arrête pas au Go-Live.' : 'Our responsibility does not stop at Go-Live.'} body={lang === 'fr' ? 'Évolutions métier, standards, intégrations, amélioration fonctionnelle et accompagnement opérationnel.' : 'Business evolution, standards, integrations, functional improvement and operational support.'} light /><PartnerStrip /></div></section><FinalCta title={lang === 'fr' ? 'Nous adaptons la solution à la banque. Pas la banque à la solution.' : 'We adapt the solution to the bank. Not the bank to the solution.'} /></Layout>;
 }
 
 // Every figure here is already stated elsewhere on the site (35 years, since 1991) or is
@@ -1292,7 +1397,7 @@ function ProofBand({ lang }: { lang: Lang }) {
   </section>
 }
 
-function CustomerSuccessPage() { const lang = useLang(); const stories = lang === 'fr' ? [['Transformation ISO 20022', 'Messages, données, interfaces et contrôles', 'Analyse des flux, transformation, intégration et tests de bout en bout', 'Transition maîtrisée et continuité des opérations'], ['Digitalisation du Trade Finance', 'Processus documentaires complexes et fragmentés', 'Plateforme intégrée, workflows et connexion au Core Banking', 'Un environnement plus intégré, traçable et évolutif'], ['Modernisation legacy', 'Patrimoine applicatif riche mais difficile à faire évoluer', 'Évaluation, récupération des règles métier et migration contrôlée', 'Architecture modernisée et connaissance bancaire préservée']] : [['ISO 20022 Transformation', 'Messages, data, interfaces and controls', 'Flow analysis, transformation, integration and end-to-end testing', 'Controlled transition and operational continuity'], ['Trade Finance Digitalisation', 'Complex and fragmented documentary processes', 'Integrated platform, workflows and Core Banking connectivity', 'A more integrated, traceable and adaptable environment'], ['Legacy Modernisation', 'Rich application heritage that is hard to evolve', 'Assessment, business-rule recovery and controlled migration', 'Modernised architecture with banking knowledge preserved']]; return <Layout><Seo title="Customer Success | Banking Transformation Delivery | SMI" description="Trusted by banks. Proven through delivery." /><PageHero eyebrow="CUSTOMER SUCCESS" title={lang === 'fr' ? 'Des relations construites dans la durée. Des transformations qui produisent des résultats.' : 'Trusted by Banks. Proven Through Delivery.'} body={lang === 'fr' ? 'La mise en production est une étape. La valeur dans la durée est l’objectif.' : 'Go-live is a milestone. Long-term value is the objective.'} note="Long-term relationships. Personalised support. Dedicated teams." /><ProofBand lang={lang} /><section className="partner-intro section-pad"><div className="content"><SectionHeading eyebrow={lang === 'fr' ? 'ILS NOUS FONT CONFIANCE' : 'TRUSTED BY'} title={lang === 'fr' ? 'Des institutions bancaires qui nous accompagnent depuis des années.' : 'Banking institutions that have worked with us for years.'} /><p className="strip-label">{lang === 'fr' ? 'PARTENAIRES BANCAIRES' : 'BANKING PARTNERS'}</p></div><PartnerStrip /><div className="content"><p className="strip-label strip-label-secondary">{lang === 'fr' ? 'PARTENAIRES TECHNOLOGIQUES' : 'TECHNOLOGY PARTNERS'}</p></div><PartnerStrip technology /></section><section className="customer-transformations section-pad content"><SectionHeading eyebrow="TRANSFORMATIONS" title={lang === 'fr' ? 'Le défi. Notre approche. Le résultat.' : 'The challenge. Our approach. The outcome.'} body={lang === 'fr' ? 'Trois transformations bancaires conduites de bout en bout, du cadrage initial jusqu’à la continuité des opérations.' : 'Three banking transformations delivered end to end, from initial framing through to operational continuity.'} /><TransformationStories stories={stories} lang={lang} /></section><FinalCta title={lang === 'fr' ? 'Chaque banque est différente. Chaque transformation mérite sa propre approche.' : 'Every bank is different. Every transformation deserves its own approach.'} /></Layout> }
+function CustomerSuccessPage() { const lang = useLang(); const stories = lang === 'fr' ? [['Transformation ISO 20022', 'Messages, données, interfaces et contrôles', 'Analyse des flux, transformation, intégration et tests de bout en bout', 'Transition maîtrisée et continuité des opérations'], ['Digitalisation du Trade Finance', 'Processus documentaires complexes et fragmentés', 'Plateforme intégrée, workflows et connexion au Core Banking', 'Un environnement plus intégré, traçable et évolutif'], ['Modernisation legacy', 'Patrimoine applicatif riche mais difficile à faire évoluer', 'Évaluation, récupération des règles métier et migration contrôlée', 'Architecture modernisée et connaissance bancaire préservée']] : [['ISO 20022 Transformation', 'Messages, data, interfaces and controls', 'Flow analysis, transformation, integration and end-to-end testing', 'Controlled transition and operational continuity'], ['Trade Finance Digitalisation', 'Complex and fragmented documentary processes', 'Integrated platform, workflows and Core Banking connectivity', 'A more integrated, traceable and adaptable environment'], ['Legacy Modernisation', 'Rich application heritage that is hard to evolve', 'Assessment, business-rule recovery and controlled migration', 'Modernised architecture with banking knowledge preserved']]; return <Layout><Seo title="Customer Success | Banking Transformation Delivery | SMI" description="Trusted by banks. Proven through delivery." /><PageHero eyebrow="CUSTOMER SUCCESS" title={lang === 'fr' ? 'Des relations construites dans la durée. Des transformations qui produisent des résultats.' : 'Trusted by Banks. Proven Through Delivery.'} mobileTitle={lang === 'fr' ? 'Des transformations bancaires. Des résultats durables.' : 'Banking transformations. Proven results.'} body={lang === 'fr' ? 'La mise en production est une étape. La valeur dans la durée est l’objectif.' : 'Go-live is a milestone. Long-term value is the objective.'} note="Long-term relationships. Personalised support. Dedicated teams." /><ProofBand lang={lang} /><section className="partner-intro section-pad"><div className="content"><SectionHeading eyebrow={lang === 'fr' ? 'ILS NOUS FONT CONFIANCE' : 'TRUSTED BY'} title={lang === 'fr' ? 'Des institutions bancaires qui nous accompagnent depuis des années.' : 'Banking institutions that have worked with us for years.'} /><p className="strip-label">{lang === 'fr' ? 'PARTENAIRES BANCAIRES' : 'BANKING PARTNERS'}</p></div><PartnerStrip /><div className="content"><p className="strip-label strip-label-secondary">{lang === 'fr' ? 'PARTENAIRES TECHNOLOGIQUES' : 'TECHNOLOGY PARTNERS'}</p></div><PartnerStrip technology /></section><section className="customer-transformations section-pad content"><SectionHeading eyebrow="TRANSFORMATIONS" title={lang === 'fr' ? 'Le défi. Notre approche. Le résultat.' : 'The challenge. Our approach. The outcome.'} body={lang === 'fr' ? 'Trois transformations bancaires conduites de bout en bout, du cadrage initial jusqu’à la continuité des opérations.' : 'Three banking transformations delivered end to end, from initial framing through to operational continuity.'} /><TransformationStories stories={stories} lang={lang} /></section><FinalCta title={lang === 'fr' ? 'Chaque banque est différente. Chaque transformation mérite sa propre approche.' : 'Every bank is different. Every transformation deserves its own approach.'} /></Layout> }
 
 function InsightsPage() { const lang = useLang(); const library = [...insights[lang], ...extraInsights[lang]]; return <Layout><Seo title="SMI Insights | Trade Finance, SWIFT & ISO 20022" description="Insights for the next generation of banking." /><PageHero eyebrow="INSIGHTS" title={lang === 'fr' ? 'Comprendre les transformations qui façonnent la banque de demain.' : 'Insights for the Next Generation of Banking.'} body={lang === 'fr' ? 'Analyses métier et technologiques sur le Trade Finance, la messagerie financière, ISO 20022 et la modernisation bancaire.' : 'Business and technology perspectives on Trade Finance, financial messaging, ISO 20022 and banking modernisation.'} /><section className="section-pad content"><div className="insight-grid insight-grid-page">{library.map(item => <InsightCard key={item.title} {...item} />)}</div></section><FinalCta title={lang === 'fr' ? 'Une question métier ou technologique mérite une conversation experte.' : 'A business or technology question deserves an expert conversation.'} /></Layout> }
 

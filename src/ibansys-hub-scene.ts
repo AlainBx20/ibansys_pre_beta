@@ -417,7 +417,7 @@ class HubScene extends HTMLElement {
         u.lift += (u.target - u.lift) * Math.min(1, dt * 9);
         p.grp.position.y = u.lift;
       });
-
+      
 
       renderer.render(scene, camera);
 
