@@ -412,7 +412,7 @@ function PartnerStrip({ technology = false }: { technology?: boolean }) {
   const items = technology ? partnerTechnology : banks
   const sequence = technology ? [...items, ...items, ...items, ...items] : items
   const loop = [...sequence, ...sequence]
-  return <div className="logo-rail"><div className={`logo-track${technology ? ' logo-track-reverse' : ''}`}>{loop.map((item, index) => <div className="logo-card" data-partner={item.name.toLowerCase()} key={`${item.name}-${index}`}><img src={assetPath(item.logo)} alt={`${item.name} logo`} loading="lazy" /><span>{item.name}</span></div>)}</div></div>
+  return <div className="logo-rail"><div className={`logo-track${technology ? ' logo-track-reverse' : ''}`}>{loop.map((item, index) => <div className="logo-card" data-partner={item.name.toLowerCase()} key={`${item.name}-${index}`}><img src={assetPath(item.logo)} alt={`${item.name} logo`} loading="eager" decoding="async" draggable="false" /><span>{item.name}</span></div>)}</div></div>
 }
 
 function SectionHeading({ eyebrow, title, body, light = false }: { eyebrow: string; title: string; body?: string; light?: boolean }) {
