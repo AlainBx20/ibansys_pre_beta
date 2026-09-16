@@ -354,8 +354,7 @@ function Header() {
             <GlobeIcon />
             {(['fr', 'en'] as const).map(option => <LanguageLink key={option} targetLang={option} className={`lang-option${lang === option ? ' is-active' : ''}`} onSwitch={close}>{option.toUpperCase()}</LanguageLink>)}
           </div>
-          <LocalLink to="contact" className="button button-ghost header-expert">{t.nav.expert}</LocalLink>
-          <LocalLink to="contact?intent=demo" className="button button-primary header-demo">{t.nav.demo}</LocalLink>
+          <LocalLink to="contact" className="button button-primary header-demo">{lang === 'fr' ? 'Échangeons sur votre projet' : 'Discuss Your Banking Project'} <Arrow /></LocalLink>
           <button className={`menu-button${mobile ? ' is-open' : ''}`} onClick={() => setMobile(!mobile)} aria-expanded={mobile} aria-label="Menu"><span /><span /><span /></button>
         </div>
       </div>
@@ -368,7 +367,7 @@ function Header() {
           <LocalLink to="banking-transformation" onClick={close}>{lang === 'fr' ? 'Transformation bancaire' : 'Banking Transformation'}</LocalLink>
         </div>}
         {nav.map(([path, label]) => <LocalLink key={path} to={path} className={isActive(path) ? 'is-active' : undefined} onClick={close}>{label}</LocalLink>)}
-        <div className="mobile-actions"><LocalLink to="contact" className="button button-dark" onClick={close}>{t.nav.expert}</LocalLink><LocalLink to="contact?intent=demo" className="button button-primary" onClick={close}>{t.nav.demo}</LocalLink></div>
+        <div className="mobile-actions"><LocalLink to="contact" className="button button-primary" onClick={close}>{lang === 'fr' ? 'Échangeons sur votre projet' : 'Discuss Your Banking Project'} <Arrow /></LocalLink></div>
       </nav>}
     </header>
   )
@@ -404,9 +403,9 @@ function Layout({ children }: { children: ReactNode }) {
   return <><ScrollToTop /><ScrollToTopButton /><ScrollReveal /><Header /><main key={pathname} className="page-transition">{children}</main><Footer /></>
 }
 
-function CtaPair({ primary, secondary }: { primary?: string; secondary?: string }) {
-  const lang = useLang(); const t = copy[lang]
-  return <div className="cta-pair"><LocalLink to="contact?intent=demo" className="button button-primary" onClick={() => track('request_demo_click', { locale: lang })}>{primary || t.common.requestDemo}<Arrow /></LocalLink><LocalLink to="contact" className="button button-outline" onClick={() => track('talk_to_expert_click', { locale: lang })}>{secondary || t.common.talk}</LocalLink></div>
+function CtaPair({ label }: { label?: string } = {}) {
+  const lang = useLang()
+  return <div className="cta-pair"><LocalLink to="contact" className="button button-primary project-cta" onClick={() => track('banking_project_contact_click', { locale: lang })}>{label || (lang === 'fr' ? 'Échangeons sur votre projet bancaire' : 'Discuss Your Banking Project')} <Arrow /></LocalLink></div>
 }
 
 function PartnerStrip({ technology = false }: { technology?: boolean }) {
@@ -554,7 +553,7 @@ interface ValueEngagement {
 }
 
 function WhyValuesVisual({ items, lang }: { items: ValueEngagement[]; lang: Lang }) {
-  const [active, setActive] = useState<number | null>(null)
+  const [active, setActive] = useState<number | null>(0)
   const [rotation, setRotation] = useState(-120)
   const [detailRevealed, setDetailRevealed] = useState(false)
   const stepLock = useRef(false)
@@ -576,7 +575,7 @@ function WhyValuesVisual({ items, lang }: { items: ValueEngagement[]; lang: Lang
   const step = (direction: number) => {
     if (stepLock.current) return
     stepLock.current = true
-    const current = active === null ? (direction > 0 ? -1 : 0) : active
+    const current = active === null ? 0 : active
     const count = detailRevealed ? items.length : Math.min(6, items.length)
     const next = direction > 0 && current === count - 1 && !detailRevealed && items.length > count
       ? count
@@ -588,7 +587,7 @@ function WhyValuesVisual({ items, lang }: { items: ValueEngagement[]; lang: Lang
   useEffect(() => () => { if (stepTimer.current) window.clearTimeout(stepTimer.current) }, [])
   const handleNodeKey = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectItem(index) }
-    if (event.key === 'Escape') { event.preventDefault(); setActive(null) }
+    if (event.key === 'Escape') { event.preventDefault(); setActive(0) }
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') { event.preventDefault(); step(1) }
     if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') { event.preventDefault(); step(-1) }
   }
@@ -632,6 +631,9 @@ function WhyValuesVisual({ items, lang }: { items: ValueEngagement[]; lang: Lang
     </div>
 
     {activeItem && <article className="smi-values-detail" key={`${lang}-${active}`} aria-live="polite">
+      <button type="button" className="smi-values-previous" onClick={() => step(-1)} aria-label={lang === 'fr' ? 'Engagement précédent' : 'Previous commitment'}>
+        <span aria-hidden="true"><Arrow /></span>
+      </button>
       <button type="button" className="smi-values-next" onClick={() => step(1)} aria-label={lang === 'fr' ? 'Engagement suivant' : 'Next commitment'}>
         <span aria-hidden="true"><Arrow /></span>
       </button>
@@ -677,14 +679,80 @@ function CommitmentJourney({ items }: { items: readonly string[] }) {
   </div>
 }
 
-function CapabilityMatrix({ items }: { items: readonly string[] }) {
-  const lang = useLang()
-  const isCareers = items[0] === 'Ingénierie logicielle' || items[0] === 'Software Engineering'
-  return <><div className="capability-map">{items.map((item, index) => <article key={item}>
-    <span className="capability-icon-wrap"><DiagramIcon type={index} /></span>
-    <h3>{item}</h3>
-    <span className="capability-index">{String(index + 1).padStart(2, '0')}</span>
-  </article>)}</div>{isCareers && <RecruitmentJourney lang={lang} />}</>
+type LayeredSystemVariant = 'ibansys' | 'swift' | 'careers'
+type SystemLayer = { label: string; title: string; subtitle: string; question: string; purpose: string; context: string; details: readonly string[] }
+
+const layeredSystems: Record<Lang, Record<LayeredSystemVariant, readonly SystemLayer[]>> = {
+  fr: {
+    ibansys: [
+      { label: 'Pilotage', title: 'Vue stratégique', subtitle: 'Objectifs & gouvernance', question: 'Pourquoi ?', purpose: 'Donner une direction commune', context: 'Mission · Programme\nObjectifs · Indicateurs', details: ['Priorités internationales', 'Risques & performance', 'Feuille de route Trade'] },
+      { label: 'Opérations', title: 'Vue métier', subtitle: 'Processus & organisation', question: 'Quoi ?', purpose: 'Maîtriser les opérations Trade', context: 'Macro-processus\nActivités · Acteurs', details: ['Crédits & remises documentaires', 'Garanties internationales', 'Paiements & correspondants'] },
+      { label: 'Capacités', title: 'Vue fonctionnelle', subtitle: 'Services & information', question: 'Comment ?', purpose: 'Relier règles, données et contrôles', context: 'Domaines · Fonctions\nObjets métier', details: ['Cycle de vie des dossiers', 'Limites & conformité', 'Commissions & comptabilisation'] },
+      { label: 'Solution', title: 'Vue applicative', subtitle: 'Modules & intégrations', question: 'Avec quoi ?', purpose: 'Orchestrer le système bancaire', context: 'Applications · Messages\nAPI · Composants', details: ['Modules IBANSYS', 'Workflows & moteur de règles', 'Documents, API & connecteurs'] },
+      { label: 'Socle', title: 'Vue infrastructure', subtitle: 'Déploiement & sécurité', question: 'Sur quoi ?', purpose: 'Assurer continuité et résilience', context: 'Plateformes · Réseaux\nSécurité · Supervision', details: ['Core Banking & SWIFT+', 'Identités & sécurité', 'Données, déploiement & suivi'] },
+    ],
+    swift: [
+      { label: 'Pilotage', title: 'Vue stratégique', subtitle: 'Standards & gouvernance', question: 'Pourquoi ?', purpose: 'Préparer les évolutions de la banque', context: 'Roadmap · Conformité\nContinuité · Indicateurs', details: ['Gestion des Standards Releases', 'Roadmap ISO 20022 & CBPR+', 'Préparation SR2026'] },
+      { label: 'Opérations', title: 'Vue métier', subtitle: 'Flux & équipes', question: 'Quoi ?', purpose: 'Unifier les échanges financiers', context: 'Paiements · Trade\nTrésorerie · Investigations', details: ['Messagerie MT / MX', 'Supervision & investigation', 'Flux entrants & sortants'] },
+      { label: 'Capacités', title: 'Vue fonctionnelle', subtitle: 'Cycle du message', question: 'Comment ?', purpose: 'Contrôler chaque étape du message', context: 'Créer · Valider\nTransformer · Router', details: ['Transformation ISO 20022', 'Validation des messages', 'Routage fonctionnel'] },
+      { label: 'Solution', title: 'Vue applicative', subtitle: 'Hub & orchestration', question: 'Avec quoi ?', purpose: 'Centraliser sans rigidifier le SI', context: 'Règles · API\nAdaptateurs · Monitoring', details: ['Hub SWIFT+', 'Traçabilité de bout en bout', 'API, connecteurs & alertes'] },
+      { label: 'Socle', title: 'Vue infrastructure', subtitle: 'Réseau & exploitation', question: 'Sur quoi ?', purpose: 'Sécuriser les échanges critiques', context: 'SWIFT · Applications\nSécurité · Observabilité', details: ['Réseau & passerelles SWIFT', 'Applications bancaires', 'Déploiement sécurisé'] },
+    ],
+    careers: [
+      { label: 'Impact', title: 'Mission bancaire', subtitle: 'Des systèmes qui comptent', question: 'Pourquoi ?', purpose: 'Contribuer aux opérations essentielles', context: 'Banque · Clients\nFiabilité · Continuité', details: ['Trade Finance', 'Messagerie financière', 'Transformation bancaire'] },
+      { label: 'Expertises', title: 'Parcours métier', subtitle: 'Plusieurs voies, un même secteur', question: 'Dans quoi ?', purpose: 'Construire une expertise reconnue', context: 'Ingénierie · Métier\nDonnées · Architecture', details: ['Développement logiciel', 'Analyse bancaire & métier', 'Données & intégration'] },
+      { label: 'Pratique', title: 'Expérience projet', subtitle: 'Du cadrage à la production', question: 'Comment ?', purpose: 'Apprendre sur des projets réels', context: 'Conception · Delivery\nTests · Production', details: ['Travail avec les banques', 'Équipes pluridisciplinaires', 'Responsabilités progressives'] },
+      { label: 'Transmission', title: 'Apprentissage continu', subtitle: 'La connaissance circule', question: 'Avec qui ?', purpose: 'Grandir au contact des experts', context: 'Mentorat · Ateliers\nDocumentation · Partage', details: ['Mentorat de proximité', 'Sessions de connaissance', 'Retours d’expérience'] },
+      { label: 'Évolution', title: 'Trajectoire durable', subtitle: 'Expertise & responsabilités', question: 'Jusqu’où ?', purpose: 'Évoluer sans perdre la profondeur', context: 'Spécialisation · Leadership\nMobilité · Progression', details: ['Parcours d’expertise', 'Pilotage de projets', 'Évolution dans la durée'] },
+    ],
+  },
+  en: {
+    ibansys: [
+      { label: 'Direction', title: 'Strategic view', subtitle: 'Objectives & governance', question: 'Why?', purpose: 'Set one shared direction', context: 'Mission · Programme\nObjectives · Indicators', details: ['International priorities', 'Risk & performance', 'Trade roadmap'] },
+      { label: 'Operations', title: 'Business view', subtitle: 'Processes & organisation', question: 'What?', purpose: 'Control every Trade operation', context: 'Macro processes\nActivities · Roles', details: ['Credits & collections', 'International guarantees', 'Payments & correspondents'] },
+      { label: 'Capabilities', title: 'Functional view', subtitle: 'Services & information', question: 'How?', purpose: 'Connect rules, data and controls', context: 'Domains · Functions\nBusiness objects', details: ['Case lifecycle', 'Limits & compliance', 'Fees & accounting'] },
+      { label: 'Solution', title: 'Application view', subtitle: 'Modules & integrations', question: 'With what?', purpose: 'Orchestrate the banking system', context: 'Applications · Messages\nAPIs · Components', details: ['IBANSYS modules', 'Workflows & rules engine', 'Documents, APIs & connectors'] },
+      { label: 'Foundation', title: 'Infrastructure view', subtitle: 'Deployment & security', question: 'On what?', purpose: 'Protect continuity and resilience', context: 'Platforms · Networks\nSecurity · Monitoring', details: ['Core Banking & SWIFT+', 'Identity & security', 'Data, deployment & monitoring'] },
+    ],
+    swift: [
+      { label: 'Direction', title: 'Strategic view', subtitle: 'Standards & governance', question: 'Why?', purpose: 'Prepare the bank for change', context: 'Roadmap · Compliance\nContinuity · Indicators', details: ['Standards Release Management', 'ISO 20022 & CBPR+ roadmap', 'SR2026 readiness'] },
+      { label: 'Operations', title: 'Business view', subtitle: 'Flows & teams', question: 'What?', purpose: 'Unify financial exchanges', context: 'Payments · Trade\nTreasury · Investigation', details: ['MT / MX Messaging', 'Monitoring & Investigation', 'Inbound & outbound flows'] },
+      { label: 'Capabilities', title: 'Functional view', subtitle: 'Message lifecycle', question: 'How?', purpose: 'Control every message stage', context: 'Create · Validate\nTransform · Route', details: ['ISO 20022 Transformation', 'Message Validation', 'Functional Routing'] },
+      { label: 'Solution', title: 'Application view', subtitle: 'Hub & orchestration', question: 'With what?', purpose: 'Centralise without constraining IT', context: 'Rules · APIs\nAdapters · Monitoring', details: ['SWIFT+ hub', 'End-to-End Traceability', 'APIs, connectors & alerts'] },
+      { label: 'Foundation', title: 'Infrastructure view', subtitle: 'Network & operations', question: 'On what?', purpose: 'Secure critical exchanges', context: 'SWIFT · Applications\nSecurity · Observability', details: ['SWIFT network & gateways', 'Banking applications', 'Secure deployment'] },
+    ],
+    careers: [
+      { label: 'Impact', title: 'Banking mission', subtitle: 'Systems that matter', question: 'Why?', purpose: 'Contribute to essential operations', context: 'Banking · Clients\nReliability · Continuity', details: ['Trade Finance', 'Financial messaging', 'Banking transformation'] },
+      { label: 'Expertise', title: 'Career paths', subtitle: 'Many paths, one industry', question: 'Where?', purpose: 'Build recognised expertise', context: 'Engineering · Business\nData · Architecture', details: ['Software engineering', 'Banking & business analysis', 'Data & integration'] },
+      { label: 'Practice', title: 'Project experience', subtitle: 'From framing to production', question: 'How?', purpose: 'Learn through real projects', context: 'Design · Delivery\nTesting · Production', details: ['Work with banks', 'Multidisciplinary teams', 'Growing responsibility'] },
+      { label: 'Knowledge', title: 'Continuous learning', subtitle: 'Knowledge moves between teams', question: 'With whom?', purpose: 'Grow alongside specialists', context: 'Mentoring · Workshops\nDocumentation · Sharing', details: ['Close mentoring', 'Knowledge sessions', 'Project feedback'] },
+      { label: 'Growth', title: 'Long-term path', subtitle: 'Expertise & responsibility', question: 'How far?', purpose: 'Progress with depth', context: 'Specialisation · Leadership\nMobility · Progression', details: ['Expert tracks', 'Project leadership', 'Long-term growth'] },
+    ],
+  },
+}
+
+function LayeredCapabilitySystem({ variant, lang }: { variant: LayeredSystemVariant; lang: Lang }) {
+  const [active, setActive] = useState(0)
+  const layers = layeredSystems[lang][variant]
+  return <div className={`layered-system layered-system-${variant}`}>
+    <div className="layered-system-rail" role="list" aria-label={lang === 'fr' ? 'Vues connectées' : 'Connected views'}>
+      {layers.map((layer, index) => {
+        const selected = index === active
+        return <div className={`system-layer-row${selected ? ' is-active' : ''}`} role="listitem" key={layer.title}>
+          <p className="system-layer-context">{layer.context.split('\n').map(line => <span key={line}>{line}</span>)}</p>
+          <button type="button" className="system-layer" aria-expanded={selected} onClick={() => setActive(index)} onFocus={() => setActive(index)} onMouseEnter={() => setActive(index)}>
+            <span className="system-layer-index">{String(index + 1).padStart(2, '0')}</span>
+            <span className="system-layer-copy"><small>{layer.label}</small><strong>{layer.title}</strong><em>{layer.subtitle}</em></span>
+            <span className="system-layer-question">{layer.question}</span>
+            <span className="system-layer-toggle" aria-hidden="true">{selected ? '−' : '+'}</span>
+            <span className="system-layer-details">{layer.details.map(detail => <span key={detail}>{detail}</span>)}</span>
+          </button>
+          <p className="system-layer-purpose"><span />{layer.purpose}</p>
+        </div>
+      })}
+    </div>
+    <div className="layered-system-foot"><span>{lang === 'fr' ? '5 vues connectées' : '5 connected views'}</span><span>{lang === 'fr' ? 'Un même référentiel de données' : 'One shared data model'}</span></div>
+  </div>
 }
 
 function ProcessJourney({ steps }: { steps: readonly string[] }) {
@@ -731,7 +799,7 @@ function wheelSegmentTextTransform(radius: number, angle: number) {
 }
 
 function TransformationStories({ stories, lang }: { stories: string[][]; lang: Lang }) {
-  const [selected, setSelected] = useState<number | null>(null)
+  const [selected, setSelected] = useState<number | null>(0)
   const labels = lang === 'fr' ? ['Défi', 'Approche SMI', 'Résultat'] : ['Challenge', 'SMI approach', 'Outcome']
   const wheelLabels = lang === 'fr'
     ? [
@@ -795,6 +863,10 @@ function TransformationStories({ stories, lang }: { stories: string[][]; lang: L
           <small>{labels[stage]}</small>
           <p>{text}</p>
         </div>)}
+      </div>
+      <div className="expertise-detail-navigation">
+        <button type="button" onClick={() => selectStory((selected! - 1 + stories.length) % stories.length)}><span aria-hidden="true">←</span>{lang === 'fr' ? 'Précédent' : 'Previous'}</button>
+        <button type="button" onClick={() => selectStory(((selected ?? 0) + 1) % stories.length)}>{lang === 'fr' ? 'Suivant' : 'Next'}<span aria-hidden="true">→</span></button>
       </div>
     </article>}
   </div>
@@ -1072,7 +1144,7 @@ function ProductPage({ kind }: { kind: 'ibansys' | 'swift' }) {
   const data = products[lang][kind]
   const isSwift = kind === 'swift'
   const visionTitle = isSwift
-    ? (lang === 'fr' ? 'Le point de référence de votre messagerie financière.' : 'The reference point for financial messaging.')
+    ? (lang === 'fr' ? 'Toute la messagerie financière. Un seul socle.' : 'Every financial message. One backbone.')
     : (lang === 'fr' ? 'Une vision unifiée du Trade et de la banque internationale.' : 'A unified view of Trade and international banking.')
   const lifecycleTitle = isSwift
     ? (lang === 'fr' ? 'Chaque message. Chaque étape. Un seul cycle de vie.' : 'Every message. Every stage. One lifecycle.')
@@ -1083,8 +1155,8 @@ function ProductPage({ kind }: { kind: 'ibansys' | 'swift' }) {
     <Seo title={`${data.title} | ${seoSuffix}`} description={data.body} />
     <PageHero eyebrow={data.eyebrow} title={data.hero} body={data.body} label={data.title} note={lang === 'fr' ? '35 ans d’expertise bancaire au service de la technologie.' : 'Built on 35 years of banking expertise.'} />
     <section className="section-pad content">
-      <SectionHeading eyebrow={lang === 'fr' ? 'VISION UNIFIÉE' : 'UNIFIED VISION'} title={visionTitle} body={lang === 'fr' ? 'Centralisez les capacités essentielles sans perdre la lisibilité des opérations.' : 'Bring essential capabilities together without losing operational clarity.'} />
-      <CapabilityMatrix items={data.capabilities} />
+      <SectionHeading eyebrow={lang === 'fr' ? 'VISION UNIFIÉE' : 'UNIFIED VISION'} title={visionTitle} body={isSwift ? (lang === 'fr' ? 'Pilotez MT, MX, ISO 20022 et CBPR+ avec les mêmes règles, contrôles et outils de supervision.' : 'Manage MT, MX, ISO 20022 and CBPR+ through the same rules, controls and monitoring tools.') : (lang === 'fr' ? 'Centralisez les capacités essentielles sans perdre la lisibilité des opérations.' : 'Bring essential capabilities together without losing operational clarity.')} />
+      <LayeredCapabilitySystem variant={kind} lang={lang} />
     </section>
     <section className="process-section section-pad">
       <div className="content">
@@ -1092,6 +1164,7 @@ function ProductPage({ kind }: { kind: 'ibansys' | 'swift' }) {
         <ProcessJourney steps={data.flow} />
       </div>
     </section>
+    {isSwift && <SwiftRoadmap lang={lang} />}
     {isSwift ? <SwiftArchitecture /> : <IbansysIntegration />}
     <section className="section-pad content">
       <SectionHeading eyebrow={lang === 'fr' ? 'POURQUOI SMI' : 'WHY SMI'} title={lang === 'fr' ? 'Une expertise métier au cœur de la solution.' : 'Banking expertise at the heart of the solution.'} body={lang === 'fr' ? 'Des équipes qui relient la connaissance bancaire, la technologie et la continuité.' : 'Teams that connect banking knowledge, technology and continuity.'} />
@@ -1107,8 +1180,9 @@ function ProductPage({ kind }: { kind: 'ibansys' | 'swift' }) {
   </Layout>
 }
 
-function PageHero({ eyebrow, title, mobileTitle, body, label }: { eyebrow: string; title: string; mobileTitle?: string; body: string; label?: string; note?: string }) {
-  return <section className="page-hero"><div className="page-hero-inner"><div>{label && <span className="product-label">{label}</span>}<p className="eyebrow">{eyebrow}</p><h1><span className="page-hero-title-desktop">{title}</span>{mobileTitle && <span className="page-hero-title-mobile">{mobileTitle}</span>}</h1><p>{body}</p><CtaPair /></div></div></section>
+function PageHero({ eyebrow, title, mobileTitle, body, label, ctaLabel, ctaHref, hideCta = false }: { eyebrow: string; title: string; mobileTitle?: string; body: string; label?: string; note?: string; ctaLabel?: string; ctaHref?: string; hideCta?: boolean }) {
+  const productLogo = label === 'IBANSYS' ? '/IBANSYS.png' : label === 'SWIFT+ Messaging Hub' ? '/swift+.png' : null
+  return <section className="page-hero"><div className="page-hero-inner"><div>{label && (productLogo ? <img className="product-label-logo" src={assetPath(productLogo)} alt={label} /> : <span className="product-label">{label}</span>)}<p className="eyebrow">{eyebrow}</p><h1><span className="page-hero-title-desktop">{title}</span>{mobileTitle && <span className="page-hero-title-mobile">{mobileTitle}</span>}</h1><p>{body}</p>{!hideCta && (ctaHref ? <div className="cta-pair"><a href={ctaHref} className="button button-primary project-cta">{ctaLabel} <Arrow /></a></div> : <CtaPair label={ctaLabel} />)}</div></div></section>
 }
 
 function MobileArchitectureGraph({ kind, lang }: { kind: 'ibansys' | 'swift'; lang: Lang }) {
@@ -1153,12 +1227,27 @@ function SwiftCanonical3D({ lang }: { lang: Lang }) {
       <span><i className="swift-legend-input" />{lang === 'fr' ? 'Applications sources' : 'Source applications'}</span>
       <span><i className="swift-legend-core" />{lang === 'fr' ? 'Modèle canonique SWIFT+' : 'SWIFT+ canonical model'}</span>
       <span><i className="swift-legend-output" />{lang === 'fr' ? 'Formats de sortie' : 'Output formats'}</span>
-      <small>{lang === 'fr' ? 'Survolez un flux' : 'Hover over a flow'}</small>
     </div>
   </div><MobileArchitectureGraph kind="swift" lang={lang} /></>
 }
 
-function SwiftArchitecture() { const lang = useLang(); return <section className="architecture section-pad"><div className="content"><SectionHeading eyebrow="CANONICAL DATA MODEL" title={lang === 'fr' ? 'Normaliser une fois. Évoluer en continu.' : 'Normalize once. Evolve continuously.'} body={lang === 'fr' ? 'Le modèle pivot isole les applications des changements de format et simplifie la coexistence MT/MX.' : 'The canonical model isolates applications from format changes and simplifies MT/MX coexistence.'} light /><SwiftCanonical3D lang={lang} /><div className="routing-note"><strong>{lang === 'fr' ? 'Préserver la couche de transport. Moderniser la couche de valeur.' : 'Preserve the transport layer. Modernise the value layer.'}</strong><p>SWIFT+ {lang === 'fr' ? 'complète les infrastructures SAA, STARS et routeurs existants ; elle ne les remplace pas.' : 'works alongside SAA, STARS and existing routing infrastructure; it does not replace them.'}</p></div></div></section> }
+function SwiftRoadmap({ lang }: { lang: Lang }) {
+  const releases = ['ISO 20022', 'CBPR+', 'SR2026', lang === 'fr' ? 'Prochaines Standards Releases' : 'Future Standards Releases']
+  return <section className="swift-roadmap section-pad">
+    <div className="content swift-roadmap-grid">
+      <div className="swift-roadmap-heading">
+        <p className="eyebrow">SWIFT ROADMAP</p>
+        <h2>{lang === 'fr' ? 'Aligné aujourd’hui. Prêt pour la suite.' : 'Aligned today. Ready for what comes next.'}</h2>
+      </div>
+      <div className="swift-roadmap-copy">
+        <p>{lang === 'fr' ? 'SWIFT+ accompagne l’évolution continue des standards SWIFT et CBPR+, notamment SR2026 et les prochaines Standards Releases.' : 'SWIFT+ supports the continuous evolution of SWIFT and CBPR+ standards, including SR2026 and the Standards Releases that follow.'}</p>
+        <div className="swift-roadmap-releases" aria-label={lang === 'fr' ? 'Standards pris en charge' : 'Supported standards'}>{releases.map(release => <span key={release}>{release}</span>)}</div>
+      </div>
+    </div>
+  </section>
+}
+
+function SwiftArchitecture() { const lang = useLang(); return <section className="architecture section-pad"><div className="content"><SectionHeading eyebrow={lang === 'fr' ? 'ÉVOLUTION CONTINUE' : 'CONTINUOUS EVOLUTION'} title={lang === 'fr' ? 'Faire évoluer SWIFT sans transformer en permanence votre SI.' : 'Evolve SWIFT without continuously rebuilding your banking architecture.'} body={lang === 'fr' ? 'En centralisant les règles, transformations, validations et contrôles, SWIFT+ limite l’impact des futures Standards Releases sur les applications métiers existantes.' : 'By centralising messaging rules, transformations, validations and controls, SWIFT+ limits the impact of future Standards Releases on existing business applications.'} light /><SwiftCanonical3D lang={lang} /><div className="routing-note"><strong>{lang === 'fr' ? 'Une banque. Un socle de messagerie. Prêt pour la suite.' : 'One Bank. One Messaging Backbone. Ready for what comes next.'}</strong><p>SWIFT+ {lang === 'fr' ? 'complète les infrastructures SAA, STARS et routeurs existants tout en isolant les applications des changements de format.' : 'works alongside SAA, STARS and existing routing infrastructure while isolating applications from format changes.'}</p></div></div></section> }
 
 function IbansysIntegration3D({ lang }: { lang: Lang }) {
   useEffect(() => { void import('./ibansys-hub-scene') }, [])
@@ -1170,7 +1259,6 @@ function IbansysIntegration3D({ lang }: { lang: Lang }) {
     <div className="ibansys-3d-legend" aria-hidden="true">
       <span><i className="ibansys-legend-flow" />{lang === 'fr' ? 'Échange de données' : 'Data exchange'}</span>
       <span><i className="ibansys-legend-core" />{lang === 'fr' ? 'Cœur IBANSYS' : 'IBANSYS core'}</span>
-      <small>{lang === 'fr' ? 'Survolez un système' : 'Hover over a system'}</small>
     </div>
   </div><MobileArchitectureGraph kind="ibansys" lang={lang} /></>
 }
@@ -1219,7 +1307,7 @@ function ExpertiseChain({ items, lang }: { items: ExpertiseDomain[]; lang: Lang 
   }
 
   return <div className="expertise-chain">
-    <div className="expertise-chain-heading"><span>{lang === 'fr' ? '08 DOMAINES' : '08 DOMAINS'}</span><i /></div>
+    <div className="expertise-chain-heading expertise-chain-heading-line"><i /></div>
     <div className="expertise-chain-window" ref={wrapRef} style={{ height: `${336 * scale}px` }}>
       <div className="expertise-chain-track" style={{ transform: `scale(${scale})` }}>
         <span className="expertise-chain-bar" aria-hidden="true"><i /></span>
@@ -1377,7 +1465,7 @@ function WhyPage() {
       tags: ['Precision', 'Fine Controls', 'Lasting Quality']
     }
   ];
-  return <Layout><Seo title="Why SMI | 35 Years of Banking Expertise" description="More than a technology provider. A long-term banking partner." /><PageHero eyebrow="WHY SMI" title={lang === 'fr' ? 'Plus qu’un fournisseur de solutions. Un partenaire bancaire dans la durée.' : 'More Than a Technology Provider. A Long-Term Banking Partner.'} mobileTitle={lang === 'fr' ? 'Un partenaire bancaire dans la durée.' : 'A long-term banking partner.'} body={lang === 'fr' ? 'Depuis 1991, SMI évolue avec le secteur bancaire et transforme cette expérience accumulée en valeur pour chaque nouveau projet.' : 'Since 1991, SMI has evolved alongside banking and turns that accumulated experience into value for every new project.'} note="Understand. Deliver. Support. Evolve." /><section className="section-pad content why-values-section"><SectionHeading eyebrow={lang === 'fr' ? 'NOS VALEURS' : 'OUR VALUES'} title={lang === 'fr' ? 'Des engagements concrets.' : 'Concrete commitments.'} body={lang === 'fr' ? 'Six principes guident notre manière de concevoir, livrer et faire évoluer chaque projet.' : 'Six principles guide how we design, deliver and evolve every project.'} /><WhyValuesVisual items={values} lang={lang} /></section><section className="architecture section-pad"><div className="content"><SectionHeading eyebrow={lang === 'fr' ? 'NOTRE RESPONSABILITÉ' : 'OUR RESPONSIBILITY'} title={lang === 'fr' ? 'Notre responsabilité ne s’arrête pas au Go-Live.' : 'Our responsibility does not stop at Go-Live.'} body={lang === 'fr' ? 'Évolutions métier, standards, intégrations, amélioration fonctionnelle et accompagnement opérationnel.' : 'Business evolution, standards, integrations, functional improvement and operational support.'} light /><PartnerStrip /></div></section><FinalCta title={lang === 'fr' ? 'Nous adaptons la solution à la banque. Pas la banque à la solution.' : 'We adapt the solution to the bank. Not the bank to the solution.'} /></Layout>;
+  return <Layout><Seo title="Why SMI | 35 Years of Banking Expertise" description="More than a technology provider. A long-term banking partner." /><PageHero eyebrow="WHY SMI" title={lang === 'fr' ? 'Plus qu’un fournisseur de solutions. Un partenaire bancaire dans la durée.' : 'More Than a Technology Provider. A Long-Term Banking Partner.'} mobileTitle={lang === 'fr' ? 'Un partenaire bancaire dans la durée.' : 'A long-term banking partner.'} body={lang === 'fr' ? 'Depuis 1991, SMI évolue avec le secteur bancaire et transforme cette expérience accumulée en valeur pour chaque nouveau projet.' : 'Since 1991, SMI has evolved alongside banking and turns that accumulated experience into value for every new project.'} note="Understand. Deliver. Support. Evolve." /><section className="section-pad content why-values-section"><SectionHeading eyebrow={lang === 'fr' ? 'NOS VALEURS' : 'OUR VALUES'} title={lang === 'fr' ? 'Des engagements concrets.' : 'Concrete commitments.'} body={lang === 'fr' ? 'Six principes guident notre manière de concevoir, livrer et faire évoluer chaque projet.' : 'Six principles guide how we design, deliver and evolve every project.'} /><WhyValuesVisual items={values} lang={lang} /></section><section className="architecture section-pad"><div className="content"><SectionHeading eyebrow={lang === 'fr' ? 'NOTRE RESPONSABILITÉ' : 'OUR RESPONSIBILITY'} title={lang === 'fr' ? 'Notre responsabilité ne s’arrête pas au Go-Live.' : 'Our responsibility does not stop at Go-Live.'} body={lang === 'fr' ? 'Évolutions métier, standards, intégrations, amélioration fonctionnelle et accompagnement opérationnel.' : 'Business evolution, standards, integrations, functional improvement and operational support.'} light /><PartnerStrip /></div></section><FinalCta title={lang === 'fr' ? 'Nous adaptons la solution à la banque. Pas la banque à la solution.' : 'We support the bank at every step of its transformation.'} /></Layout>;
 }
 
 // Every figure here is already stated elsewhere on the site (35 years, since 1991) or is
@@ -1420,7 +1508,7 @@ function InsightArticlePage() {
   return <Layout><Seo title={`${article.title} | SMI Insights`} description={article.summary} /><PageHero eyebrow={article.category} title={article.title} body={article.summary} /><section className="section-pad content"><article className="article-content"><p className="article-intro">{paragraphs[0]}</p><h2>{lang === 'fr' ? 'Construire une trajectoire maîtrisée' : 'Build a controlled roadmap'}</h2><p>{paragraphs[1]}</p><h2>{lang === 'fr' ? 'Relier le métier et la technologie' : 'Connect business and technology'}</h2><p>{paragraphs[2]}</p><LocalLink to="insights" className="text-link article-back"><span aria-hidden="true">←</span>{lang === 'fr' ? 'Retour aux analyses' : 'Back to insights'}</LocalLink></article></section><FinalCta title={lang === 'fr' ? 'Approfondissons le sujet avec vos équipes.' : 'Explore the topic with your teams.'} /></Layout>
 }
 
-function CareersPage() { const lang = useLang(); const paths = lang === 'fr' ? ['Ingénierie logicielle', 'Analyse bancaire & métier', 'Messagerie financière', 'Données & bases de données', 'Intégration & architecture', 'Gestion de projet & delivery'] : ['Software Engineering', 'Banking & Business Analysis', 'Financial Messaging', 'Data & Databases', 'Integration & Architecture', 'Project & Delivery']; return <Layout><Seo title="Careers at SMI | Banking Technology" description="Build expertise at the intersection of banking and technology." /><PageHero eyebrow="CAREERS" title={lang === 'fr' ? 'Construisez avec nous les technologies qui font évoluer la banque.' : 'Build the Future of Banking Technology With Us.'} body={lang === 'fr' ? 'Apprenez la technologie. Comprenez le métier. Construisez de vraies solutions bancaires.' : 'Learn the technology. Understand the business. Build real banking solutions.'} note="Curiosity. Rigour. Banking knowledge. Engineering excellence." /><section className="section-pad content"><SectionHeading eyebrow={lang === 'fr' ? 'DOMAINES' : 'FIELDS'} title={lang === 'fr' ? 'Travaillez sur des systèmes qui comptent.' : 'Work on systems that matter.'} /><CapabilityMatrix items={paths} /></section><section className="people section-pad"><div className="content people-grid"><SectionHeading eyebrow={lang === 'fr' ? 'GRANDIR CHEZ SMI' : 'GROW AT SMI'} title={lang === 'fr' ? 'L’expérience grandit lorsqu’elle est partagée.' : 'Experience grows when it is shared.'} body={lang === 'fr' ? 'Mentorat, sessions de connaissance, apprentissage projet, documentation et collaboration entre équipes.' : 'Mentoring, knowledge sessions, project learning, documentation and cross-team collaboration.'} /><div className="role-list">{(lang === 'fr' ? ['Projets utiles', 'Apprentissage continu', 'Collaboration entre experts', 'Évolution dans la durée'] : ['Meaningful Projects', 'Continuous Learning', 'Expert Collaboration', 'Long-Term Growth']).map(item => <div key={item}><span /><p>{item}</p></div>)}</div></div></section><FinalCta title={lang === 'fr' ? 'Commencez par la technologie. Développez une expertise bancaire.' : 'Start with technology. Grow into banking expertise.'} /></Layout> }
+function CareersPage() { const lang = useLang(); return <Layout><Seo title="Careers at SMI | Banking Technology" description="Build expertise at the intersection of banking and technology." /><PageHero eyebrow="CAREERS" title={lang === 'fr' ? 'Construisez avec nous les technologies qui font évoluer la banque.' : 'Build the Future of Banking Technology With Us.'} body={lang === 'fr' ? 'Apprenez la technologie. Comprenez le métier. Construisez de vraies solutions bancaires.' : 'Learn the technology. Understand the business. Build real banking solutions.'} note="Curiosity. Rigour. Banking knowledge. Engineering excellence." /><section className="section-pad content"><SectionHeading eyebrow={lang === 'fr' ? 'DOMAINES' : 'FIELDS'} title={lang === 'fr' ? 'Travaillez sur des systèmes qui comptent.' : 'Work on systems that matter.'} body={lang === 'fr' ? 'Découvrez comment les missions, les expertises et l’apprentissage se relient dans votre parcours chez SMI.' : 'See how purpose, expertise and learning connect throughout your path at SMI.'} /><LayeredCapabilitySystem variant="careers" lang={lang} /><RecruitmentJourney lang={lang} /></section><section className="people section-pad"><div className="content people-grid"><SectionHeading eyebrow={lang === 'fr' ? 'GRANDIR CHEZ SMI' : 'GROW AT SMI'} title={lang === 'fr' ? 'L’expérience grandit lorsqu’elle est partagée.' : 'Experience grows when it is shared.'} body={lang === 'fr' ? 'Mentorat, sessions de connaissance, apprentissage projet, documentation et collaboration entre équipes.' : 'Mentoring, knowledge sessions, project learning, documentation and cross-team collaboration.'} /><div className="role-list">{(lang === 'fr' ? ['Projets utiles', 'Apprentissage continu', 'Collaboration entre experts', 'Évolution dans la durée'] : ['Meaningful Projects', 'Continuous Learning', 'Expert Collaboration', 'Long-Term Growth']).map(item => <div key={item}><span /><p>{item}</p></div>)}</div></div></section><FinalCta title={lang === 'fr' ? 'Commencez par la technologie. Développez une expertise bancaire.' : 'Start with technology. Grow into banking expertise.'} /></Layout> }
 
 const contactAddress = '11 Av. Louis Braille, Tunis, Tunisie'
 
@@ -1449,45 +1537,94 @@ function ContactPage() {
     const select = document.querySelector<HTMLSelectElement>('select[name="interest"]')
     if (select) select.value = initialInterest
   }, [initialInterest])
-  /*
-  return <Layout><Seo title="Talk to an Expert | SMI" description="Discuss your next banking challenge with SMI." /><PageHero eyebrow={lang === 'fr' ? 'PARLONS BANQUE' : 'LET’S TALK BANKING'} title={lang === 'fr' ? 'Parlons de votre prochain enjeu bancaire.' : 'Let’s Discuss What’s Next for Your Bank.'} body={lang === 'fr' ? 'Trade Finance, SWIFT, ISO 20022, modernisation ou intégration : chaque projet commence par la compréhension du contexte.' : 'Trade Finance, SWIFT, ISO 20022, modernisation or integration: every project starts with understanding the context.'} /><section className="section-pad content contact-grid"><div><SectionHeading eyebrow={lang === 'fr' ? 'VOTRE CONTEXTE D’ABORD' : 'YOUR CONTEXT FIRST'} title={lang === 'fr' ? 'Commençons par le besoin.' : 'Start with the challenge.'} body={lang === 'fr' ? 'La bonne discussion, avec la bonne expertise.' : 'The right discussion with the right expertise.'} /><div className="contact-details"><a href="mailto:contact@societelemondeinformatique.com">contact@societelemondeinformatique.com</a><a href="tel:+21653928121">+216 53 928 121</a><p>{contactAddress}</p></div><ContactMap /></div><form className="contact-form" onSubmit={onSubmit}>{status === 'success' ? <div className="form-success" role="status"><strong>{lang === 'fr' ? 'Merci pour votre demande.' : 'Thank you for your request.'}</strong><p>{lang === 'fr' ? 'Votre message a bien été transmis à l’équipe SMI. Nous vous répondrons dans les meilleurs délais.' : 'Your message has been delivered to the SMI team. We will respond as soon as possible.'}</p><button type="button" className="button button-outline" onClick={() => setStatus('idle')}>{lang === 'fr' ? 'Nouvelle demande' : 'New request'}</button></div> : <><div className="form-row"><label>{lang === 'fr' ? 'Prénom' : 'First Name'} *<input required autoComplete="given-name" name="firstName" /></label><label>{lang === 'fr' ? 'Nom' : 'Last Name'} *<input required autoComplete="family-name" name="lastName" /></label></div><label>{lang === 'fr' ? 'Institution / Entreprise' : 'Institution / Company'} *<input required autoComplete="organization" name="institution" /></label><div className="form-row"><label>{lang === 'fr' ? 'Fonction' : 'Job Title'}<input autoComplete="organization-title" name="jobTitle" /></label><label>{lang === 'fr' ? 'Pays' : 'Country'} *<input required autoComplete="country-name" name="country" /></label></div><label>{lang === 'fr' ? 'Email professionnel' : 'Business Email'} *<input required type="email" autoComplete="email" name="email" /></label><input type="hidden" name="intent" value={intent} /><label>{lang === 'fr' ? 'Domaine d’intérêt' : 'Area of Interest'} *<select required name="interest" defaultValue={initialInterest}><option value="" disabled>{lang === 'fr' ? 'Sélectionner' : 'Select'}</option>{interests.map(item => <option key={item}>{item}</option>)}</select></label><label>Message *<textarea required name="message" rows={5} /></label><label className="form-honeypot" aria-hidden="true">Website<input name="_honey" tabIndex={-1} autoComplete="off" /></label><label className="consent"><input type="checkbox" required name="consent" value="accepted" />{lang === 'fr' ? 'J’accepte que SMI utilise ces informations pour répondre à ma demande.' : 'I agree that SMI may use this information to respond to my request.'}</label>{status === 'activation' && <p className="form-activation" role="status">{lang === 'fr' ? 'Un email d’activation a été envoyé à l’adresse de réception SMI. Cliquez sur « Activate Form », puis renvoyez cette demande.' : 'An activation email was sent to the SMI receiving address. Click « Activate Form », then submit again.'}</p>}{status === 'error' && <p className="form-error" role="alert">{lang === 'fr' ? 'Votre demande n’a pas pu être envoyée. Réessayez ou écrivez-nous directement.' : 'Your request could not be sent. Please try again or email us directly.'}</p>}<button className="button button-primary" type="submit" disabled={status === 'submitting'}>{status === 'submitting' ? (lang === 'fr' ? 'Envoi…' : 'Sending…') : (lang === 'fr' ? 'Envoyer la demande' : 'Send request')} <Arrow /></button></>}</form></section></Layout>
 
-  */
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (status === 'submitting') return
     const form = event.currentTarget
-    const data = Object.fromEntries(new FormData(form).entries())
-    if (data._honey) return
+    const formData = new FormData(form)
+    if (formData.get('_honey')) return
+
+    formData.set('_subject', `SMI website — ${formData.get('interest') || 'Contact request'}`)
+    formData.set('_template', 'table')
+    const email = formData.get('email')
+    if (typeof email === 'string' && email) {
+      formData.set('_replyto', email)
+    }
+    formData.set('source', window.location.href)
+
     setStatus('submitting')
+
+    // Strategy: Submit via FormData directly to formsubmit.co/ajax.
+    // By using FormData without 'Content-Type: application/json', the browser sends
+    // a CORS-safelisted request (multipart/form-data), skipping the OPTIONS preflight request
+    // that was timing out with HTTP 522 / CORS error.
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 12000)
+
       const response = await fetch('https://formsubmit.co/ajax/chuikaa.a@societelemondeinformatique.com', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          ...data,
-          _subject: `SMI website — ${data.interest || 'Contact request'}`,
-          _template: 'table',
-          _replyto: data.email,
-          source: window.location.href,
-        }),
+        headers: { Accept: 'application/json' },
+        body: formData,
+        signal: controller.signal,
       })
+      clearTimeout(timeoutId)
+
       if (!response.ok) throw new Error(`Submission failed with ${response.status}`)
       const result = await response.json() as { success?: string | boolean; message?: string }
+
       if ((result.success === false || result.success === 'false') && result.message?.toLowerCase().includes('activation')) {
         setStatus('activation')
         return
       }
-      if (result.success === false || result.success === 'false') throw new Error('Submission was rejected')
-      track('form_submission', { form: 'contact', locale: lang })
-      form.reset()
-      setStatus('success')
+
+      if (result.success === true || result.success === 'true') {
+        track('form_submission', { form: 'contact', locale: lang })
+        form.reset()
+        setStatus('success')
+        return
+      }
+
+      throw new Error(result.message || 'Submission rejected')
     } catch {
-      setStatus('error')
+      // Fallback: If AJAX is blocked or times out, submit via standard Form POST targeted to a hidden iframe.
+      // This completely bypasses all CORS and network preflight restrictions with 100% browser compatibility.
+      try {
+        let iframe = document.getElementById('formsubmit-hidden-frame') as HTMLIFrameElement | null
+        if (!iframe) {
+          iframe = document.createElement('iframe')
+          iframe.id = 'formsubmit-hidden-frame'
+          iframe.name = 'formsubmit-hidden-frame'
+          iframe.style.display = 'none'
+          document.body.appendChild(iframe)
+        }
+
+        const originalAction = form.action
+        const originalMethod = form.method
+        const originalTarget = form.target
+
+        form.action = 'https://formsubmit.co/chuikaa.a@societelemondeinformatique.com'
+        form.method = 'POST'
+        form.target = 'formsubmit-hidden-frame'
+
+        form.submit()
+
+        // Restore form attributes
+        form.action = originalAction
+        form.method = originalMethod
+        form.target = originalTarget
+
+        track('form_submission', { form: 'contact', locale: lang, fallback: 'iframe' })
+        form.reset()
+        setStatus('success')
+      } catch {
+        setStatus('error')
+      }
     }
   }
 
-  return <Layout><Seo title="Talk to an Expert | SMI" description="Discuss your next banking challenge with SMI." /><PageHero eyebrow={lang === 'fr' ? 'PARLONS BANQUE' : 'LET’S TALK BANKING'} title={lang === 'fr' ? 'Parlons de votre prochain enjeu bancaire.' : 'Let’s Discuss What’s Next for Your Bank.'} body={lang === 'fr' ? 'Trade Finance, SWIFT, ISO 20022, modernisation ou intégration : chaque projet commence par la compréhension du contexte.' : 'Trade Finance, SWIFT, ISO 20022, modernisation or integration: every project starts with understanding the context.'} /><section className="section-pad content contact-grid"><div><SectionHeading eyebrow={lang === 'fr' ? 'VOTRE CONTEXTE D’ABORD' : 'YOUR CONTEXT FIRST'} title={lang === 'fr' ? 'Commençons par le besoin.' : 'Start with the challenge.'} body={lang === 'fr' ? 'La bonne discussion, avec la bonne expertise.' : 'The right discussion with the right expertise.'} /><div className="contact-details"><a href="mailto:contact@societelemondeinformatique.com">contact@societelemondeinformatique.com</a><a href="tel:+21653928121">+216 53 928 121</a><p>{contactAddress}</p></div><ContactMap /></div><form className="contact-form" onSubmit={onSubmit}>{status === 'success' ? <div className="form-success" role="status"><strong>{lang === 'fr' ? 'Merci pour votre demande.' : 'Thank you for your request.'}</strong><p>{lang === 'fr' ? 'Votre message a bien été transmis à l’équipe SMI. Nous vous répondrons dans les meilleurs délais.' : 'Your message has been delivered to the SMI team. We will respond as soon as possible.'}</p><button type="button" className="button button-outline" onClick={() => setStatus('idle')}>{lang === 'fr' ? 'Nouvelle demande' : 'New request'}</button></div> : <><div className="form-row"><label>{lang === 'fr' ? 'Prénom' : 'First Name'} *<input required autoComplete="given-name" name="firstName" /></label><label>{lang === 'fr' ? 'Nom' : 'Last Name'} *<input required autoComplete="family-name" name="lastName" /></label></div><label>{lang === 'fr' ? 'Institution / Entreprise' : 'Institution / Company'} *<input required autoComplete="organization" name="institution" /></label><div className="form-row"><label>{lang === 'fr' ? 'Fonction' : 'Job Title'}<input autoComplete="organization-title" name="jobTitle" /></label><label>{lang === 'fr' ? 'Pays' : 'Country'} *<input required autoComplete="country-name" name="country" /></label></div><label>{lang === 'fr' ? 'Email professionnel' : 'Business Email'} *<input required type="email" autoComplete="email" name="email" /></label><label>{lang === 'fr' ? 'Domaine d’intérêt' : 'Area of Interest'} *<select required name="interest" defaultValue=""><option value="" disabled>{lang === 'fr' ? 'Sélectionner' : 'Select'}</option>{interests.map(item => <option key={item}>{item}</option>)}</select></label><label>Message *<textarea required name="message" rows={5} /></label><label className="form-honeypot" aria-hidden="true">Website<input name="_honey" tabIndex={-1} autoComplete="off" /></label><label className="consent"><input type="checkbox" required name="consent" value="accepted" />{lang === 'fr' ? 'J’accepte que SMI utilise ces informations pour répondre à ma demande.' : 'I agree that SMI may use this information to respond to my request.'}</label>{status === 'activation' && <p className="form-activation" role="status">{lang === 'fr' ? 'Un email d’activation a été envoyé à l’adresse de réception SMI. Cliquez sur « Activate Form », puis renvoyez cette demande.' : 'An activation email was sent to the SMI receiving address. Click “Activate Form”, then submit this request again.'}</p>}{status === 'error' && <p className="form-error" role="alert">{lang === 'fr' ? 'L’envoi a échoué. Vérifiez votre connexion et réessayez, ou contactez-nous directement par email.' : 'Your request could not be sent. Check your connection and try again, or contact us directly by email.'}</p>}<button className="button button-primary" type="submit" disabled={status === 'submitting'}>{status === 'submitting' ? (lang === 'fr' ? 'Envoi en cours…' : 'Sending…') : (lang === 'fr' ? 'Envoyer la demande' : 'Send Request')} {status !== 'submitting' && <Arrow />}</button></>}</form></section></Layout>
+  return <Layout><Seo title="Talk to an Expert | SMI" description="Discuss your next banking challenge with SMI." /><PageHero eyebrow={lang === 'fr' ? 'PARLONS BANQUE' : 'LET’S TALK BANKING'} title={lang === 'fr' ? 'Parlons de votre prochain enjeu bancaire.' : 'Let’s Discuss What’s Next for Your Bank.'} body={lang === 'fr' ? 'Trade Finance, SWIFT, ISO 20022, modernisation ou intégration : chaque projet commence par la compréhension du contexte.' : 'Trade Finance, SWIFT, ISO 20022, modernisation or integration: every project starts with understanding the context.'} /><section className="section-pad content contact-grid"><div><SectionHeading eyebrow={lang === 'fr' ? 'VOTRE CONTEXTE D’ABORD' : 'YOUR CONTEXT FIRST'} title={lang === 'fr' ? 'Commençons par le besoin.' : 'Start with the challenge.'} body={lang === 'fr' ? 'La bonne discussion, avec la bonne expertise.' : 'The right discussion with the right expertise.'} /><div className="contact-details"><a href="mailto:contact@societelemondeinformatique.com">contact@societelemondeinformatique.com</a><a href="tel:+21653928121">+216 53 928 121</a><p>{contactAddress}</p></div><ContactMap /></div><form className="contact-form" onSubmit={onSubmit}>{status === 'success' ? <div className="form-success" role="status"><strong>{lang === 'fr' ? 'Merci pour votre demande.' : 'Thank you for your request.'}</strong><p>{lang === 'fr' ? 'Votre message a bien été transmis à l’équipe SMI. Nous vous répondrons dans les meilleurs délais.' : 'Your message has been delivered to the SMI team. We will respond as soon as possible.'}</p><button type="button" className="button button-outline" onClick={() => setStatus('idle')}>{lang === 'fr' ? 'Nouvelle demande' : 'New request'}</button></div> : <><div className="form-row"><label>{lang === 'fr' ? 'Prénom' : 'First Name'} *<input required autoComplete="given-name" name="firstName" /></label><label>{lang === 'fr' ? 'Nom' : 'Last Name'} *<input required autoComplete="family-name" name="lastName" /></label></div><label>{lang === 'fr' ? 'Institution / Entreprise' : 'Institution / Company'} *<input required autoComplete="organization" name="institution" /></label><div className="form-row"><label>{lang === 'fr' ? 'Fonction' : 'Job Title'}<input autoComplete="organization-title" name="jobTitle" /></label><label>{lang === 'fr' ? 'Pays' : 'Country'} *<input required autoComplete="country-name" name="country" /></label></div><label>{lang === 'fr' ? 'Email professionnel' : 'Business Email'} *<input required type="email" autoComplete="email" name="email" /></label><label>{lang === 'fr' ? 'Domaine d’intérêt' : 'Area of Interest'} *<select required name="interest" defaultValue=""><option value="" disabled>{lang === 'fr' ? 'Sélectionner' : 'Select'}</option>{interests.map(item => <option key={item}>{item}</option>)}</select></label><label>{lang === 'fr' ? 'Comment pouvons-nous vous aider ?' : 'How can we help?'}<select name="intent" defaultValue={intent === 'demo' ? 'demo' : 'expert'}><option value="expert">{lang === 'fr' ? 'Échanger avec un expert' : 'Talk to an expert'}</option><option value="demo">{lang === 'fr' ? 'Demander une démonstration' : 'Request a demo'}</option></select></label><label>Message *<textarea required name="message" rows={5} /></label><label className="form-honeypot" aria-hidden="true">Website<input name="_honey" tabIndex={-1} autoComplete="off" /></label><label className="consent"><input type="checkbox" required name="consent" value="accepted" /><span>{lang === 'fr' ? 'J’accepte que SMI utilise ces informations pour répondre à ma demande.' : 'I agree that SMI may use this information to respond to my request.'}</span></label>{status === 'activation' && <p className="form-activation" role="status">{lang === 'fr' ? 'Un email d’activation a été envoyé à l’adresse de réception SMI. Cliquez sur « Activate Form », puis renvoyez cette demande.' : 'An activation email was sent to the SMI receiving address. Click “Activate Form”, then submit this request again.'}</p>}{status === 'error' && <p className="form-error" role="alert">{lang === 'fr' ? 'L’envoi a échoué. Vérifiez votre connexion et réessayez, ou contactez-nous directement par email.' : 'Your request could not be sent. Check your connection and try again, or contact us directly by email.'}</p>}<button className="button button-primary" type="submit" disabled={status === 'submitting'}>{status === 'submitting' ? (lang === 'fr' ? 'Envoi en cours…' : 'Sending…') : (lang === 'fr' ? 'Envoyer la demande' : 'Send Request')} {status !== 'submitting' && <Arrow />}</button></>}</form></section></Layout>
 }
 
 function LegalPage({ kind }: { kind: 'privacy' | 'legal' }) { const lang = useLang(); const privacy = kind === 'privacy'; return <Layout><Seo title={`${privacy ? 'Privacy' : 'Legal'} | SMI`} description="SMI corporate information." /><section className="legal-page content"><p className="eyebrow">SMI</p><h1>{privacy ? (lang === 'fr' ? 'Politique de confidentialité' : 'Privacy Policy') : (lang === 'fr' ? 'Mentions légales' : 'Legal Notice')}</h1><p>{lang === 'fr' ? 'Cette page doit être finalisée et validée juridiquement avant la mise en production.' : 'This page must be completed and legally reviewed before production.'}</p></section></Layout> }

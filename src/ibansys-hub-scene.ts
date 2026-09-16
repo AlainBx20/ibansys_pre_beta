@@ -79,14 +79,13 @@ function puckTopTexture(node) {
   // inset disc
   const inset = S * 0.33;
   const g = ctx.createLinearGradient(c - inset, c - inset, c + inset, c + inset);
-  if (node.tone === "teal") { g.addColorStop(0, C.teal500); g.addColorStop(1, C.teal700); }
-  else { g.addColorStop(0, C.ink200); g.addColorStop(1, C.ink300); }
+  g.addColorStop(0, C.teal500); g.addColorStop(1, C.teal700);
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(c, c, inset, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = node.tone === "teal" ? "rgba(255,255,255,.35)" : C.ink300;
+  ctx.strokeStyle = "rgba(255,255,255,.35)";
   ctx.lineWidth = 3;
   ctx.beginPath(); ctx.arc(c, c, inset - 8, 0, Math.PI * 2); ctx.stroke();
-  drawIcon(ctx, node.icon, c, c, S * 0.3, node.tone === "teal" ? "#FFFFFF" : C.ink600 || C.ink500, 0.075);
+  drawIcon(ctx, node.icon, c, c, S * 0.3, "#FFFFFF", 0.075);
   const t = new THREE.CanvasTexture(cv);
   t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
   t.center.set(0.5, 0.5);
@@ -145,7 +144,7 @@ class HubScene extends HTMLElement {
     const key = new THREE.DirectionalLight(0xffffff, 1.15);
     key.position.set(-6, 12, 7);
     key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.mapSize.set(2048, 1024);
     Object.assign(key.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 34 });
     key.shadow.camera.updateProjectionMatrix();
     scene.add(key);
@@ -187,7 +186,7 @@ class HubScene extends HTMLElement {
 
       const base = new THREE.Mesh(
         new THREE.CylinderGeometry(R_PUCK * 1.07, R_PUCK * 1.07, 0.14, 64),
-        node.tone === "teal" ? tealBase : inkBase
+        tealBase
       );
       base.position.y = 0.07;
       base.castShadow = true;
@@ -237,8 +236,7 @@ class HubScene extends HTMLElement {
       const align = node.side === "left" ? "right" : node.side === "right" ? "left" : "center";
       el.style.cssText = `position:absolute;width:186px;text-align:${align};transform-origin:0 0;transition:opacity 140ms cubic-bezier(.2,0,.2,1);`;
       el.innerHTML =
-        `<div style="font-size:13px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:${C.cyan};line-height:1.34;text-shadow:0 2px 12px rgba(0,9,20,.72);">${node.t}</div>` +
-        `<div style="margin-top:5px;font-size:12.5px;font-weight:520;line-height:18px;color:${C.labelMuted};text-shadow:0 2px 10px rgba(0,9,20,.76);">${node.s}</div>`;
+        `<div style="font-size:13px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:${C.cyan};line-height:1.34;text-shadow:0 2px 12px rgba(0,9,20,.72);">${node.t}</div>`;
       labelLayer.appendChild(el);
       labels.push({ el, node, anchor: new THREE.Vector3(Math.cos(rad) * (R_RING + R_PUCK * 1.6), 0.55, -Math.sin(rad) * (R_RING + R_PUCK * 1.5)) });
     });

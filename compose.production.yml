@@ -1,0 +1,22 @@
+services:
+  website:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: smi-website:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      WWW_DOMAIN: ${WWW_DOMAIN:-}
+      CERTBOT_EMAIL: ${CERTBOT_EMAIL}
+      CERTBOT_STAGING: ${CERTBOT_STAGING:-0}
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+
+volumes:
+  letsencrypt:
+  certbot-webroot:
